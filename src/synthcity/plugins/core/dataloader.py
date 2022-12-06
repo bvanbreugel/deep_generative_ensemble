@@ -255,6 +255,7 @@ class GenericDataLoader(DataLoader):
             important_features=important_features,
             outcome_features=[self.target_column],
             random_state=random_state,
+            train_size=train_size,
             **kwargs,
         )
 
@@ -417,6 +418,7 @@ class SurvivalAnalysisDataLoader(DataLoader):
             important_features=important_features,
             outcome_features=[self.target_column],
             random_state=random_state,
+            train_size=train_size,
             **kwargs,
         )
 
@@ -618,6 +620,7 @@ class TimeSeriesDataLoader(DataLoader):
             sensitive_features=sensitive_features,
             important_features=important_features,
             random_state=random_state,
+            train_size=train_size,
             **kwargs,
         )
 
