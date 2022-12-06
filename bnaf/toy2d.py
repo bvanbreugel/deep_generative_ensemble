@@ -7,9 +7,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 from torch.utils import data
-from bnaf import *
+from .bnaf import *
 from tqdm import trange
-from data.generate2d import sample2d, energy2d
+from .data.generate2d import sample2d, energy2d
 
 
 def create_model(args, verbose=False):
@@ -62,12 +62,15 @@ def compute_log_p_x(model, x_mb):
     return log_p_y_mb + log_diag_j_mb
 
 
-def train_density2d(model, optimizer, scheduler, args):
+def train_density2d(model, optimizer, scheduler, args, data=None):
     iterator = trange(args.steps, smoothing=0, dynamic_ncols=True)
     for epoch in iterator:
-
+        if data is None:
+            data_mb = sample2d(args.dataset, args.batch_dim)
+        else:
+            data_mb = data[np.random.choice(np.arange(data.shape[0]).astype(int), args.batch_dim)]
         x_mb = (
-            torch.from_numpy(sample2d(args.dataset, args.batch_dim))
+            torch.from_numpy(data_mb)
             .float()
             .to(args.device)
         )
@@ -208,8 +211,7 @@ def plot_energy2d(model, args, limit=4, step=0.05, resolution=(10000, 10000)):
     else:
         plt.show()
 
-
-def main():
+def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument(
@@ -230,7 +232,7 @@ def main():
     parser.add_argument("--patience", type=int, default=2000)
     parser.add_argument("--decay", type=float, default=0.5)
 
-    parser.add_argument("--flows", type=int, default=1)
+    parser.add_argument("--flows", type=int, default=5)
     parser.add_argument("--layers", type=int, default=3)
     parser.add_argument("--hidden_dim", type=int, default=50)
 
@@ -239,9 +241,12 @@ def main():
     parser.add_argument("--save", action="store_true")
     parser.add_argument("--savefig", action="store_true")
     parser.add_argument("--reduce_extreme", action="store_true")
+    args = parser.parse_args("")
+    return args
 
-    args = parser.parse_args()
 
+def main(data=None):
+    args = parse()
     print("Arguments:")
     pprint.pprint(args.__dict__)
 
@@ -257,11 +262,11 @@ def main():
         ),
     )
 
-    if (args.save or args.savefig) and not args.load:
-        print("Creating directory experiment..")
-        os.mkdir(args.path)
-        with open(os.path.join(args.path, "args.json"), "w") as f:
-            json.dump(args.__dict__, f, indent=4, sort_keys=True)
+    # if (args.save or args.savefig) and not args.load:
+    #     print("Creating directory experiment..")
+    #     os.mkdir(args.path)
+    #     with open(os.path.join(args.path, "args.json"), "w") as f:
+    #         json.dump(args.__dict__, f, indent=4, sort_keys=True)
 
     print("Creating BNAF model..")
     model = create_model(args, verbose=True)
@@ -286,19 +291,30 @@ def main():
 
     print("Training..")
     if args.experiment == "density2d":
-        train_density2d(model, optimizer, scheduler, args)
+        train_density2d(model, optimizer, scheduler, args, data)
     elif args.experiment == "energy2d":
-        train_energy2d(model, optimizer, scheduler, args)
+        train_energy2d(model, optimizer, scheduler, args, data)
 
-    if args.save:
-        print("Saving..")
-        save(model, optimizer, os.path.join(args.load or args.path, "checkpoint.pt"))
+    # if args.save:
+    #     print("Saving..")
+    #     save(model, optimizer, os.path.join(args.load or args.path, "checkpoint.pt"))
 
-    print("Plotting..")
-    if args.experiment == "density2d":
-        plot_density2d(model, args)
-    elif args.experiment == "energy2d":
-        plot_energy2d(model, args)
+    # print("Plotting..")
+    # if args.experiment == "density2d":
+    #     plot_density2d(model, args)
+    # elif args.experiment == "energy2d":
+    #     plot_energy2d(model, args)
+    
+    def func(x):
+        X = torch.utils.data.TensorDataset(torch.Tensor(X, device = args.device))
+        X = torch.utils.data.DataLoader(
+            X, batch_size=10000, shuffle=False
+        )
+        return torch.exp(compute_log_p_x(model, torch.tensor(X))).detach()
+
+    return func
+
+
 
 
 if __name__ == "__main__":
