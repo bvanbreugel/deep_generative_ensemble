@@ -227,9 +227,9 @@ def parse():
     parser.add_argument("--learning_rate", type=float, default=1e-1)
     parser.add_argument("--batch_dim", type=int, default=200)
     parser.add_argument("--clip_norm", type=float, default=0.1)
-    parser.add_argument("--steps", type=int, default=20000)
+    parser.add_argument("--steps", type=int, default=10000)
 
-    parser.add_argument("--patience", type=int, default=2000)
+    parser.add_argument("--patience", type=int, default=1000)
     parser.add_argument("--decay", type=float, default=0.5)
 
     parser.add_argument("--flows", type=int, default=5)
@@ -305,14 +305,8 @@ def main(data=None):
     # elif args.experiment == "energy2d":
     #     plot_energy2d(model, args)
     
-    def func(x):
-        X = torch.utils.data.TensorDataset(torch.Tensor(X, device = args.device))
-        X = torch.utils.data.DataLoader(
-            X, batch_size=10000, shuffle=False
-        )
-        return torch.exp(compute_log_p_x(model, torch.tensor(X))).detach()
 
-    return func
+    return model
 
 
 
