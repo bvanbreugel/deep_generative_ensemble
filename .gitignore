@@ -1,3 +1,7 @@
+datasets/*.csv
+uncertainty_results/*
+
+
 # Temporary and binary files
 *~
 *.py[cod]
@@ -11,7 +15,6 @@
 __pycache__/*
 .cache/*
 .*.swp
-uncertainty_results/*
 */.ipynb_checkpoints/*
 .DS_Store
 
