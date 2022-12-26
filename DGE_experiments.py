@@ -97,18 +97,25 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
 
     if X_syns[0].targettype is 'classification':
         # Consider calibration of different approaches
+        plt.figure(figsize=(10, 10))
         for y_pred in y_preds:
             y_true = X_test.dataframe()['target'].values
             prob_true, prob_pred = calibration_curve(y_true, y_pred)
             plt.plot(prob_pred, prob_true)
-
-        plt.legend(['DGE (k=20)', 'DGE (k=10)', 'DGE (k=5)',
-                    'Naive (single)', 'Naive (concat)'])
+        
+        plt.xlabel = 'Mean predicted probability'
+        plt.ylabel = 'Fraction of positives'
 
         plt.plot([0, 1], [0, 1], linestyle='--')
+        plt.legend(['DGE (k=20)', 'DGE (k=10)', 'DGE (k=5)',
+                    'Naive (single)', 'Naive (concat)', 'Perfect calibration'])
 
+        
         if save:
-            plt.savefig(os.path.join(results_folder, 'calibration_curve.png'))
+            filename = os.path.join(results_folder, 'calibration_curve.png')
+            if not os.path.exists(results_folder):
+                os.makedirs(results_folder)
+            plt.savefig(filename)
 
         plt.show()
 
@@ -120,7 +127,7 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
 def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, load=True, save=True):
     means = []
     stds = []
-    approaches = ['Oracle', 'Naive', 'DGE']
+    approaches = ['oracle', 'naive', 'dge']
     for i, approach in enumerate(approaches):
         mean, std, _ = aggregate_predictive(
             X_gt, X_syns, models=None, task_type=model_type, load=load, save=save, approach=approach, relative=relative, verbose=False)
@@ -139,14 +146,14 @@ def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, load=T
     return res, means, stds
 
 
-def model_selection_experiment(model_type='mlp', relative='l1', metric='accuracy'):
+def model_selection_experiment(X_gt, X_syns, relative='l1', metric='accuracy', load=True, save=True):
     model_types = ['lr', 'mlp', 'deep_mlp', 'rf', 'knn', 'svm', 'xgboost']
     metric = 'accuracy'
     results = []
     means = []
     relative = 'l1'
     for i, model_type in enumerate(model_types):
-        res, mean, _ = model_evaluation_experiment(model_type, relative=relative)
+        res, mean, _ = model_evaluation_experiment(X_gt, X_syns, model_type, relative=relative, load=load, save=save)
         results.append(res[metric])
         means.append(mean[metric])
 
@@ -173,7 +180,7 @@ def model_selection_experiment(model_type='mlp', relative='l1', metric='accuracy
 
     means_sorted.iloc[3:].astype(int)
     print(means_sorted)
-    return results
+    return results, means_sorted
 
 ##############################################################################################################
 

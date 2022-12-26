@@ -167,13 +167,13 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
             model = models[i]
         reproducibility.enable_reproducible_results(seed=i+2022)
         X_train = X_syns[i].train()
-        if approach == 'single':
+        if approach == 'naive':
             X_test = X_syns[i].test()
-        elif approach == 'us':
+        elif approach == 'dge':
             X_syns_not_i = [X_syns[j] for j in range(len(X_syns)) if j != i]
             X_syns_not_i[0].targettype = X_syns[0].targettype
             X_test = cat_dl(X_syns_not_i)
-        elif approach == 'us_new':
+        elif approach == 'dge_new':
             X_syns_not_i = [X_syns[j] for j in range(len(X_syns)) if j != i]
         elif approach == 'oracle':
             X_test = X_gt.test()
