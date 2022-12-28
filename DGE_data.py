@@ -12,48 +12,68 @@ from synthcity.plugins import Plugins
 import synthcity.logger as log
 
 from bnaf.data.generate2d import sample2d
-from datasets.dataloader_seer_cutract import load_seer_cutract_dataset
+from data.dataloader_seer_cutract import load_seer_cutract_dataset
 
 def load_real_data(dataset, p_train=None):
 
-    if p_train is None:
-        p_train = 0.2
 
     if dataset == 'diabetes':
+        if p_train is None:
+            p_train = 0.6
         X, y = load_diabetes(return_X_y=True, as_frame=True)
     elif dataset == 'iris':
+        if p_train is None:
+            p_train = 0.6
         X, y = load_iris(return_X_y=True, as_frame=True)
     elif dataset == 'breast_cancer':
+        if p_train is None:
+            p_train = 0.6
         X, y = load_breast_cancer(return_X_y=True, as_frame=True)
     elif dataset == 'wine':
+        if p_train is None:
+            p_train = 0.6
         X, y = load_wine(return_X_y=True, as_frame=True)
     elif dataset == 'digits':
         X, y = load_digits(return_X_y=True, as_frame=True)
     elif dataset == 'moons':
         X, y = make_moons(n_samples=10000, noise=0.2, random_state=0)
         X = pd.DataFrame(X)
-        p_train = 0.2
+        if p_train is None:
+            p_train = 0.2
     elif dataset in ["8gaussians", "2spirals", "checkerboard", "t1", "t2", "t3", "t4"]:
         X = sample2d(dataset, 20000)
         X = pd.DataFrame(X)
         y = -np.ones(X.shape[0])
-        p_train = 0.5
+        if p_train is None:
+            p_train = 0.5
     elif dataset == 'gaussian':
         n_real = 40000
         X = np.random.randn(n_real, 2)
         X = pd.DataFrame(X)
         noise = 2
         y = X[0] > noise*(np.random.uniform(size=n_real)-1/2)
-        p_train = 0.1
+        if p_train is None:
+            p_train = 0.1
     elif dataset == 'covid':
         pass
     elif dataset == 'cal_housing':
+        if p_train is None:
+            p_train = 0.6
+        
         X = fetch_california_housing()
         X, y = X.data, X.target
     elif dataset=='covtype':
+        
+        if p_train is None:
+            p_train = 0.6
+        
         X = fetch_covtype()
         X, y = X.data, X.target
     elif dataset in ['seer', 'cutract']:
+        
+        if p_train is None:
+            p_train = 0.5
+
         X, y = load_seer_cutract_dataset(name="seer", seed=0)
         X = pd.DataFrame(X)
     elif dataset in ['uniform', 'test']:
@@ -61,7 +81,8 @@ def load_real_data(dataset, p_train=None):
         X = np.random.uniform(size=(n_real, 2))
         X = pd.DataFrame(X)
         y = X[0] > np.random.uniform(size=n_real)
-        p_train = 0.1
+        if p_train is None:
+            p_train = 0.1
     else:
         raise ValueError('Unknown dataset')
 
