@@ -63,7 +63,7 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
                             for i in range(len(X_syns))], axis=0)
     X_syn_cat = GenericDataLoader(X_syn_cat, target_column="target")
     X_syn_cat.targettype = X_syns[0].targettype
-    X_syn_cat = [X_syn_cat for _ in range(len(X_syns))]
+    X_syn_cat = [X_syn_cat]
     #X_syn_cat = [X_syn_cat.sample(len(X_syns[0])) for _ in range(len(X_syns))]
 
     if X_test.shape[1] == 2:
@@ -76,8 +76,10 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
     y_preds['Naive (concat)'] = y_pred_mean
 
     # Oracle
-    X_oracle = [X_gt.train() for i in range(len(X_syns))]
-    
+    X_oracle = X_gt.train()
+    X_oracle.targettype = X_syns[0].targettype
+    X_oracle = [X_oracle]
+
     if X_test.shape[1] == 2:
         y_pred_mean, _, _ = aggregate_imshow(
             X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
@@ -114,7 +116,7 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
     # Compute metrics
     scores = []
     for key, y_pred in y_preds.items():
-        scores.append(compute_metrics(X_test.unpack()[1].to_numpy(), y_pred, X_test.targettype))
+        scores.append(compute_metrics(X_test.unpack(as_numpy=True)[1], y_pred, X_test.targettype))
     
     scores = pd.concat(scores, axis=0)
     scores.index = y_preds.keys()

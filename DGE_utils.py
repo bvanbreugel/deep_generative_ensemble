@@ -96,16 +96,21 @@ def supervised_task(X_gt, X_syn, model=None, model_type='mlp', verbose=False):
         model = init_model(model_type, X_syn.targettype)
         X, y = X_syn.unpack(as_numpy=True)
         model.fit(X, y.reshape(-1, 1))
-    pred = model.predict(X_gt.unpack(as_numpy=True)[0])
+    if X_gt.targettype == 'regression':
+        pred = model.predict(X_gt.unpack(as_numpy=True)[0])
+    else:
+        pred = model.predict_proba(X_gt.unpack(as_numpy=True)[0])[:, 1]    
     return pred, model
 
 
 def compute_metrics(y_test, yhat_test, targettype='classification'):
     if targettype == 'classification':
+        y_test = y_test.astype(bool)
+        yhat_test = yhat_test.astype(float) 
         metrics = ['roc_auc', 'accuracy', 'f1', 'precision', 'recall', 'nll', 'brier',]
-        scores = [roc_auc_score(y_test, yhat_test), accuracy_score(y_test, yhat_test),
-                  f1_score(y_test, yhat_test), precision_score(
-                      y_test, yhat_test), recall_score(y_test, yhat_test),
+        scores = [roc_auc_score(y_test, yhat_test), accuracy_score(y_test, yhat_test>0.5),
+                  f1_score(y_test, yhat_test>0.5), precision_score(
+                      y_test, yhat_test>0.5), recall_score(y_test, yhat_test>0.5),
                   log_loss(y_test, yhat_test), brier_score_loss(y_test, yhat_test)]
     elif targettype == 'regression':
         metrics = ['mse', 'mae']
