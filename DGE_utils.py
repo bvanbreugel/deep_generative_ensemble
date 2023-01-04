@@ -108,8 +108,8 @@ def compute_metrics(y_test, yhat_test, targettype='classification'):
                       y_test, yhat_test), recall_score(y_test, yhat_test),
                   log_loss(y_test, yhat_test), brier_score_loss(y_test, yhat_test)]
     elif targettype == 'regression':
-        metrics = ['r2', 'mse', 'mae']
-        scores = [r2_score(y_test, yhat_test), mean_squared_error(
+        metrics = ['mse', 'mae']
+        scores = [mean_squared_error(
             y_test, yhat_test), mean_absolute_error(y_test, yhat_test)]
     else:
         raise ValueError('unknown target type')

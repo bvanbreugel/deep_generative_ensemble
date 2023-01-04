@@ -7,7 +7,7 @@ import os
 from synthcity.plugins.core.dataloader import GenericDataLoader
 from synthcity.utils import reproducibility
 
-from DGE_utils import supervised_task, aggregate_imshow, aggregate, density_estimation, aggregate_predictive, cat_dl
+from DGE_utils import supervised_task, aggregate_imshow, aggregate, density_estimation, aggregate_predictive, cat_dl, compute_metrics
 
 ############################################################################################################
 # Model training. Predictive performance
@@ -19,97 +19,89 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
     Args:
         X_test (GenericDataLoader): Test data.
         X_syns (List(GenericDataLoader)): List of synthetic datasets.
-        X_gt (GenericDataLoader): Real data
+        X_test (GenericDataLoader): Real data
         load (bool, optional): Load results, if available. Defaults to True.
         save (bool, optional): Save results when done. Defaults to True.
+
+    Returns:
+
     """
 
     X_test = X_gt.test()
+    X_test.targettype = X_gt.targettype
+    
+    y_preds = {}
 
-    # DGE (k=20)
+# DGE (k=5, 10, 20)
     if len(X_syns) != 20:
         raise ValueError('X_syns assumed to have 20 elements in this experiment.')
 
-    if X_syns[0].targettype is not None:
-        if X_gt.shape[1] == 2:
+    for k in [20, 10, 5]:
+        if X_test.shape[1] == 2:
             y_pred_mean, y_pred_std, models = aggregate_imshow(
-                X_gt, X_syns, supervised_task, models=None, workspace_folder=workspace_folder, results_folder=results_folder, task_type=task_type, load=load, save=save)
+                X_test, X_syns[:k], supervised_task, models=None, workspace_folder=workspace_folder, results_folder=results_folder, task_type=task_type, load=load, save=save, filename=f'DGE_k{k}')
         else:
             y_pred_mean, y_pred_std, models = aggregate(
-                X_test, X_syns, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save)
+                X_test, X_syns[:k], supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename=f'DGE_k{k}')
 
-        y_preds = [y_pred_mean]
+        y_preds[f'DGE (k={k})'] = y_pred_mean
 
-    # DGE (k=10)
-    if X_syns[0].targettype is not None:
-        if X_gt.shape[1] == 2:
-            y_pred_mean, y_pred_std, models = aggregate_imshow(
-                X_gt, X_syns[:5], supervised_task, models=None, task_type=task_type, workspace_folder=workspace_folder, results_folder=results_folder, load=load, save=save)
-        else:
-            y_pred_mean, y_pred_std, models = aggregate(
-                X_test, X_syns, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save)
-
-        y_preds.append(y_pred_mean)
-
-    # DGE (k=5)
-    if X_syns[0].targettype is not None:
-        if X_gt.shape[1] == 2:
-            y_pred_mean, y_pred_std, models = aggregate_imshow(
-                X_gt, X_syns[:5], supervised_task, models=None, task_type=task_type, workspace_folder=workspace_folder, results_folder=results_folder, load=load, save=save)
-        else:
-            y_pred_mean, y_pred_std, models = aggregate(
-                X_test, X_syns, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save)
-
-        y_preds.append(y_pred_mean)
-
+    
     # Single model
-    if X_syns[0].targettype is not None:
-        X_syn_0 = [X_syns[0] for _ in range(len(X_syns))]
-        if X_gt.shape[1] == 2:
-            y_pred_mean, y_pred_std, models = aggregate_imshow(
-                X_gt, X_syn_0, supervised_task, models=None, task_type=task_type, load=load, save=save, filename='naive')
-        else:
-            y_pred_mean, y_pred_std, models = aggregate(
-                X_test, X_syn_0, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='naive')
+    X_syn_0 = [X_syns[0] for _ in range(len(X_syns))]
+    if X_test.shape[1] == 2:
+        y_pred_mean, y_pred_std, models = aggregate_imshow(
+            X_test, X_syn_0, supervised_task, models=None, task_type=task_type, load=load, save=save, filename='naive')
+    else:
+        y_pred_mean, y_pred_std, models = aggregate(
+            X_test, X_syn_0, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='naive')
 
-        y_preds.append(y_pred_mean)
+    y_preds['Naive (single)'] = y_pred_mean
 
     # Data aggregated
+    X_syn_cat = pd.concat([X_syns[i].dataframe()
+                            for i in range(len(X_syns))], axis=0)
+    X_syn_cat = GenericDataLoader(X_syn_cat, target_column="target")
+    X_syn_cat.targettype = X_syns[0].targettype
+    X_syn_cat = [X_syn_cat for _ in range(len(X_syns))]
+    #X_syn_cat = [X_syn_cat.sample(len(X_syns[0])) for _ in range(len(X_syns))]
 
-    if X_syns[0].targettype is not None:
-        X_syn_cat = pd.concat([X_syns[i].dataframe()
-                              for i in range(len(X_syns))], axis=0)
-        X_syn_cat = GenericDataLoader(X_syn_cat, target_column="target")
-        X_syn_cat.targettype = X_syns[0].targettype
-        X_syn_cat = [X_syn_cat for _ in range(len(X_syns))]
-        #X_syn_cat = [X_syn_cat.sample(len(X_syns[0])) for _ in range(len(X_syns))]
+    if X_test.shape[1] == 2:
+        y_pred_mean, y_pred_std, models = aggregate_imshow(
+            X_test, X_syn_cat, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
+    else:
+        y_pred_mean, y_pred_std, models = aggregate(
+            X_test, X_syn_cat, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
 
-        if X_gt.shape[1] == 2:
-            y_pred_mean, y_pred_std, models = aggregate_imshow(
-                X_gt, X_syn_cat, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
-        else:
-            y_pred_mean, y_pred_std, models = aggregate(
-                X_test, X_syn_cat, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
+    y_preds['Naive (concat)'] = y_pred_mean
 
-        y_preds.append(y_pred_mean)
+    # Oracle
+    X_oracle = [X_gt.train() for i in range(len(X_syns))]
+    
+    if X_test.shape[1] == 2:
+        y_pred_mean, _, _ = aggregate_imshow(
+            X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
+    else:
+        y_pred_mean, _, _ = aggregate(
+            X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
+
+    y_preds['Oracle'] = y_pred_mean
 
 
 
     if X_syns[0].targettype is 'classification':
         # Consider calibration of different approaches
         plt.figure(figsize=(10, 10))
-        for y_pred in y_preds:
+        for key, y_pred in y_preds.items():
             y_true = X_test.dataframe()['target'].values
-            prob_true, prob_pred = calibration_curve(y_true, y_pred)
-            plt.plot(prob_pred, prob_true)
+            prob_true, prob_pred = calibration_curve(y_true, y_pred, n_bins=5)
+            plt.plot(prob_pred, prob_true, label = key)
         
         plt.xlabel = 'Mean predicted probability'
         plt.ylabel = 'Fraction of positives'
 
-        plt.plot([0, 1], [0, 1], linestyle='--')
-        plt.legend(['DGE (k=20)', 'DGE (k=10)', 'DGE (k=5)',
-                    'Naive (single)', 'Naive (concat)', 'Perfect calibration'])
-
+        plt.plot([0, 1], [0, 1], linestyle='--', label='Perfect calibration')
+        plt.legend()
         
         if save:
             filename = os.path.join(results_folder, 'calibration_curve.png')
@@ -119,6 +111,14 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
 
         plt.show()
 
+    # Compute metrics
+    scores = []
+    for key, y_pred in y_preds.items():
+        scores.append(compute_metrics(X_test.unpack()[1].to_numpy(), y_pred, X_test.targettype))
+    
+    scores = pd.concat(scores, axis=0)
+    scores.index = y_preds.keys()
+    return y_preds, scores
 
 ##############################################################################################################
 
@@ -149,7 +149,6 @@ def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, worksp
 
 def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='workspace', metric='accuracy', load=True, save=True):
     model_types = ['lr', 'mlp', 'deep_mlp', 'rf', 'knn', 'svm', 'xgboost']
-    metric = 'accuracy'
     results = []
     means = []
     relative = 'l1'
@@ -181,6 +180,7 @@ def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='wo
 
     means_sorted.iloc[3:].astype(int)
     print(means_sorted)
+    
     return results, means_sorted
 
 ##############################################################################################################
