@@ -55,13 +55,14 @@ def load_real_data(dataset, p_train=None):
         if p_train is None:
             p_train = 0.1
     elif dataset == 'covid':
-        pass
+        raise ValueError('Covid data not available')
     elif dataset == 'cal_housing':
         if p_train is None:
-            p_train = 0.6
+            p_train = 0.1
         
         X = fetch_california_housing()
         X, y = X.data, X.target
+        X = pd.DataFrame(X)
     elif dataset=='covtype':
         
         if p_train is None:
