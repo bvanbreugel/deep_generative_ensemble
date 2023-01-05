@@ -1,4 +1,4 @@
-from sklearn.datasets import load_iris, load_diabetes, load_boston, load_breast_cancer, load_wine, load_digits, make_moons, fetch_california_housing, fetch_covtype
+from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer, load_wine, load_digits, make_moons, make_circles, fetch_california_housing, fetch_covtype
 
 import pandas as pd
 import numpy as np
@@ -39,7 +39,12 @@ def load_real_data(dataset, p_train=None):
         X, y = make_moons(n_samples=10000, noise=0.2, random_state=0)
         X = pd.DataFrame(X)
         if p_train is None:
-            p_train = 0.2
+            p_train = 0.1
+    elif dataset == 'circles':
+        X, y = make_circles(n_samples=10000, noise=0.2, factor=0.5, random_state=0)
+        X = pd.DataFrame(X)
+        if p_train is None:
+            p_train = 0.1
     elif dataset in ["8gaussians", "2spirals", "checkerboard", "t1", "t2", "t3", "t4"]:
         X = sample2d(dataset, 20000)
         X = pd.DataFrame(X)
@@ -73,7 +78,7 @@ def load_real_data(dataset, p_train=None):
     elif dataset in ['seer', 'cutract']:
         
         if p_train is None:
-            p_train = 0.5
+            p_train = 0.1
 
         X, y = load_seer_cutract_dataset(name="seer", seed=0)
         X = pd.DataFrame(X)
