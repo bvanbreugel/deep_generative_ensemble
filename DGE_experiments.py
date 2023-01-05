@@ -47,16 +47,27 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
         y_preds[f'DGE (k={k})'] = y_pred_mean
 
     
-    # Single model
-    X_syn_0 = [X_syns[0] for _ in range(len(X_syns))]
+    # Single dataset single model
+    X_syn_0 = [X_syns[1]]
     if X_test.shape[1] == 2:
         y_pred_mean, y_pred_std, models = aggregate_imshow(
-            X_test, X_syn_0, supervised_task, models=None, task_type=task_type, load=load, save=save, filename='naive')
+            X_test, X_syn_0, supervised_task, models=None, task_type=task_type, load=load, save=save, filename='naive_single')
     else:
         y_pred_mean, y_pred_std, models = aggregate(
-            X_test, X_syn_0, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='naive')
+            X_test, X_syn_0, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='naive_single')
 
     y_preds['Naive (single)'] = y_pred_mean
+
+    # Single dataset model ensemble
+    X_syn_0 = [X_syns[1] for _ in range(len(X_syns))]
+    if X_test.shape[1] == 2:
+        y_pred_mean, y_pred_std, models = aggregate_imshow(
+            X_test, X_syn_0, supervised_task, models=None, task_type=task_type, load=load, save=save, filename='naive_ensemble')
+    else:
+        y_pred_mean, y_pred_std, models = aggregate(
+            X_test, X_syn_0, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='naive_ensemble')
+
+    y_preds['Naive (ensemble)'] = y_pred_mean
 
     # Data aggregated
     X_syn_cat = pd.concat([X_syns[i].dataframe()
@@ -87,7 +98,19 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
         y_pred_mean, _, _ = aggregate(
             X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
 
-    y_preds['Oracle'] = y_pred_mean
+    y_preds['Oracle (single)'] = y_pred_mean
+
+    X_oracle = X_oracle * len(X_syns)
+
+    if X_test.shape[1] == 2:
+        y_pred_mean, _, _ = aggregate_imshow(
+            X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
+    else:
+        y_pred_mean, _, _ = aggregate(
+            X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
+
+    y_preds['Oracle (ensemble)'] = y_pred_mean
+
 
 
 
