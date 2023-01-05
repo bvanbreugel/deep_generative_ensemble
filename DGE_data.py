@@ -12,7 +12,10 @@ from synthcity.plugins import Plugins
 import synthcity.logger as log
 
 from bnaf.data.generate2d import sample2d
-from data.dataloader_seer_cutract import load_seer_cutract_dataset
+from data.dataloader_seer_cutract import load_seer_cutract
+
+from data.dataloader_adult import load_adult_census
+
 
 def load_real_data(dataset, p_train=None):
 
@@ -33,6 +36,11 @@ def load_real_data(dataset, p_train=None):
         if p_train is None:
             p_train = 0.6
         X, y = load_wine(return_X_y=True, as_frame=True)
+    elif dataset == 'adult':
+        if p_train is None:
+            p_train = 0.1
+        X, y = load_adult_census(as_frame=True)
+
     elif dataset == 'digits':
         X, y = load_digits(return_X_y=True, as_frame=True)
     elif dataset == 'moons':
@@ -75,12 +83,13 @@ def load_real_data(dataset, p_train=None):
         
         X = fetch_covtype()
         X, y = X.data, X.target
+        X = pd.DataFrame(X)
     elif dataset in ['seer', 'cutract']:
         
         if p_train is None:
             p_train = 0.1
 
-        X, y = load_seer_cutract_dataset(name="seer", seed=0)
+        X, y = load_seer_cutract(name="seer", seed=0)
         X = pd.DataFrame(X)
     elif dataset in ['uniform', 'test']:
         n_real = 10000

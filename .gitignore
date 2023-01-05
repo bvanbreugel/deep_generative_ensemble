@@ -62,7 +62,7 @@ workspace
 workspace_test
 output
 diagrams
-data
+data/*.csv
 *.png
 *.pdf
 *.pkl
