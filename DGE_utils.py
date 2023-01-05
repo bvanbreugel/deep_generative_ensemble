@@ -77,7 +77,7 @@ def init_model(model_type, targettype):
             model = sklearn.neighbors.KNeighborsRegressor()
     elif model_type == 'svm':
         if targettype == 'classification':
-            model = sklearn.svm.SVC()
+            model = sklearn.svm.SVC(probability=True)
         else:
             model = sklearn.svm.SVR()
     elif model_type == 'xgboost':
@@ -107,18 +107,18 @@ def compute_metrics(y_test, yhat_test, targettype='classification'):
     if targettype == 'classification':
         y_test = y_test.astype(bool)
         yhat_test = yhat_test.astype(float) 
-        metrics = ['roc_auc', 'accuracy', 'f1', 'precision', 'recall', 'nll', 'brier',]
+        metrics = ['AUC', 'Acc', 'F1', 'Precision', 'Recall', 'NLL', 'Brier',]
         scores = [roc_auc_score(y_test, yhat_test), accuracy_score(y_test, yhat_test>0.5),
                   f1_score(y_test, yhat_test>0.5), precision_score(
                       y_test, yhat_test>0.5), recall_score(y_test, yhat_test>0.5),
                   log_loss(y_test, yhat_test), brier_score_loss(y_test, yhat_test)]
     elif targettype == 'regression':
-        metrics = ['mse', 'mae']
+        metrics = ['MSE', 'MAE']
         scores = [mean_squared_error(
             y_test, yhat_test), mean_absolute_error(y_test, yhat_test)]
     else:
         raise ValueError('unknown target type')
-
+    scores = np.round(scores, 3)
     scores = np.array(scores).reshape(1, -1)
     scores = pd.DataFrame(scores, columns=metrics)
     return scores
@@ -135,7 +135,11 @@ def tt_predict_performance(X_test, X_train, model=None, model_type='mlp', verbos
         model = init_model(model_type, X_test.targettype)
         model.fit(x_train, y_train)
 
-    yhat_test = model.predict(x_test)
+    if X_test.targettype == 'regression':
+        yhat_test = model.predict(x_test)
+    else:
+        yhat_test = model.predict_proba(x_test)[:, 1]
+    
     scores = compute_metrics(y_test, yhat_test, X_test.targettype)
     return scores, model
 
