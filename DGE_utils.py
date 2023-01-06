@@ -2,7 +2,9 @@ import xgboost
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, precision_score, recall_score, r2_score, mean_squared_error, mean_absolute_error, log_loss, brier_score_loss
 from sklearn.model_selection import KFold, train_test_split
 import sklearn
-
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+    
 from synthcity.plugins.core.dataloader import GenericDataLoader
 from synthcity.utils import reproducibility
 
@@ -87,6 +89,9 @@ def init_model(model_type, targettype):
             model = xgboost.XGBRegressor()
     else:
         raise ValueError('Unknown model type')
+    
+    # Wrap the model in a pipeline to scale the data
+    model = Pipeline([('scaler', StandardScaler()), ('model', model)])
     return model
 
 
@@ -96,6 +101,7 @@ def supervised_task(X_gt, X_syn, model=None, model_type='mlp', verbose=False):
         model = init_model(model_type, X_syn.targettype)
         X, y = X_syn.unpack(as_numpy=True)
         model.fit(X, y.reshape(-1, 1))
+        
     if X_gt.targettype == 'regression':
         pred = model.predict(X_gt.unpack(as_numpy=True)[0])
     else:
@@ -113,9 +119,9 @@ def compute_metrics(y_test, yhat_test, targettype='classification'):
                       y_test, yhat_test>0.5), recall_score(y_test, yhat_test>0.5),
                   log_loss(y_test, yhat_test), brier_score_loss(y_test, yhat_test)]
     elif targettype == 'regression':
-        metrics = ['MSE', 'MAE']
-        scores = [mean_squared_error(
-            y_test, yhat_test), mean_absolute_error(y_test, yhat_test)]
+        metrics = ['RMSE', 'MAE']
+        scores = [np.sqrt(mean_squared_error(
+            y_test, yhat_test)), mean_absolute_error(y_test, yhat_test)]
     else:
         raise ValueError('unknown target type')
     scores = np.round(scores, 3)
@@ -371,7 +377,7 @@ def tsne(X):
     return X_2d
 
 
-def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_folder='results', workspace_folder='workspace', load=True, save=True, filename=''):
+def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_folder=None, workspace_folder='workspace', load=True, save=True, filename=''):
     """
     Aggregate and plot predictions from different synthetic datasets, on a 2D space. E.g., density estimation, predictions.
     """
@@ -403,13 +409,17 @@ def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_fold
         plt.imshow(y.reshape(steps, steps)[::-1],
                    cmap='viridis', extent=[xmin, xmax, ymin, ymax])
         plt.colorbar()
-        if X_gt.dataset == 'gaussian':
+        if 'gaussian' in results_folder:
             plt.vlines(0, ymin, ymax, colors='r', linestyles='dashed')
-        filename = f'{results_folder}/{task.__name__}_n{len(X_gt.train().unpack()[0])}_{filename}{stat}'
-        print(f'Saving {filename}.png')
-        plt.savefig(filename+'.png')
+        if save:
+            filename_base = os.path.join(results_folder, f'{task.__name__}_n{len(X_gt.train().unpack()[0])}_{filename}{stat}')
+            print(f'Saving {filename_base}.png')
+            os.makedirs(results_folder, exist_ok=True)
+            plt.savefig(filename_base+'.png')
         plt.show()
+
         X_train, y_train = X_gt.train().unpack(as_numpy=True)
+            
         if len(np.unique(y_train)) == 2:
             plt.imshow(y.reshape(steps, steps)[
                        ::-1], cmap='viridis', extent=[xmin, xmax, ymin, ymax])
@@ -417,9 +427,11 @@ def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_fold
             plt.scatter(X_train[y_train, 0], X_train[y_train, 1], c='k', marker='.')
             plt.scatter(X_train[~y_train, 0], X_train[~y_train, 1], c='w', marker='.')
             plt.colorbar()
-            if X_gt.dataset == 'gaussian':
+            if 'gaussian' in results_folder:
                 plt.vlines(0, ymin, ymax, colors='r', linestyles='dashed')
-            plt.savefig(f'{filename}_with_samples.png')
+            
+            if save:
+                plt.savefig(f'{filename_base}_with_samples.png')
 
             plt.show()
 

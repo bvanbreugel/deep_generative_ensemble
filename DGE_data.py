@@ -17,7 +17,7 @@ from data.dataloader_seer_cutract import load_seer_cutract
 from data.dataloader_adult import load_adult_census
 
 
-def load_real_data(dataset, p_train=None):
+def load_real_data(dataset, p_train=None, max_n=None):
 
 
     if dataset == 'diabetes':
@@ -44,12 +44,12 @@ def load_real_data(dataset, p_train=None):
     elif dataset == 'digits':
         X, y = load_digits(return_X_y=True, as_frame=True)
     elif dataset == 'moons':
-        X, y = make_moons(n_samples=10000, noise=0.2, random_state=0)
+        X, y = make_moons(n_samples=10000, noise=0.3, random_state=0)
         X = pd.DataFrame(X)
         if p_train is None:
             p_train = 0.1
     elif dataset == 'circles':
-        X, y = make_circles(n_samples=10000, noise=0.2, factor=0.5, random_state=0)
+        X, y = make_circles(n_samples=10000, noise=0.3, factor=0.5, random_state=0)
         X = pd.DataFrame(X)
         if p_train is None:
             p_train = 0.1
@@ -102,6 +102,8 @@ def load_real_data(dataset, p_train=None):
         raise ValueError('Unknown dataset')
 
     X["target"] = y
+    if max_n is not None and X.shape[0]*p_train > max_n:
+        p_train = max_n/X.shape[0]
     X_gt = GenericDataLoader(X, target_column="target", train_size=p_train)
 
     if len(np.unique(y)) == 1:
@@ -174,9 +176,10 @@ def get_real_and_synthetic(dataset,
                            model_name='ctgan',
                            load_syn=True,
                            save=True,
-                           verbose=False):
+                           verbose=False,
+                           max_n = None):
 
-    X_gt = load_real_data(dataset, p_train=p_train)
+    X_gt = load_real_data(dataset, p_train=p_train, max_n=max_n)
     X_train, X_test = X_gt.train(), X_gt.test()
 
     X_train.targettype = X_gt.targettype
@@ -202,5 +205,6 @@ def get_real_and_synthetic(dataset,
     for i in range(len(X_syns)):
         X_syns[i].dataset = dataset
         X_syns[i].targettype = X_gt.targettype
+        X_syns[i].dataset = dataset
 
     return X_gt, X_syns
