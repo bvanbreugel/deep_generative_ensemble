@@ -13,7 +13,7 @@ from DGE_utils import supervised_task, aggregate_imshow, aggregate, density_esti
 # Model training. Predictive performance
 
 
-def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results', workspace_folder='workspace', load=True, save=True):
+def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, workspace_folder='workspace', load=True, save=True, plot=False):
     """Compares predictions by different approaches.
 
     Args:
@@ -26,48 +26,54 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
     Returns:
 
     """
+    if save and results_folder is None:
+        raise ValueError('results_folder must be specified when save=True.')
 
     X_test = X_gt.test()
     X_test.targettype = X_gt.targettype
-    
+    d = X_test.unpack(as_numpy=True)[0].shape[1]
+    if not X_gt.targettype in ['regression', 'classification']:
+        raise ValueError('X_gt.targettype must be regression or classification.')
+
     y_preds = {}
 
-# DGE (k=5, 10, 20)
+    # DGE (k=5, 10, 20)
     if len(X_syns) != 20:
         raise ValueError('X_syns assumed to have 20 elements in this experiment.')
 
     for k in [20, 10, 5]:
-        if X_test.shape[1] == 2:
-            y_pred_mean, y_pred_std, models = aggregate_imshow(
-                X_test, X_syns[:k], supervised_task, models=None, workspace_folder=workspace_folder, results_folder=results_folder, task_type=task_type, load=load, save=save, filename=f'DGE_k{k}')
-        else:
-            y_pred_mean, y_pred_std, models = aggregate(
+        
+        y_pred_mean, y_pred_std, models = aggregate(
                 X_test, X_syns[:k], supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename=f'DGE_k{k}')
-
+        
+        if d == 2 and plot:
+            aggregate_imshow(
+                X_test, X_syns[:k], supervised_task, models=models, workspace_folder=workspace_folder, results_folder=results_folder, task_type=task_type, load=load, save=save, filename=f'DGE_k{k}')
+        
         y_preds[f'DGE (k={k})'] = y_pred_mean
 
     
     # Single dataset single model
-    X_syn_0 = [X_syns[1]]
-    if X_test.shape[1] == 2:
-        y_pred_mean, y_pred_std, models = aggregate_imshow(
-            X_test, X_syn_0, supervised_task, models=None, task_type=task_type, load=load, save=save, filename='naive_single')
-    else:
-        y_pred_mean, y_pred_std, models = aggregate(
-            X_test, X_syn_0, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='naive_single')
+    y_naive = {'Naive (single)': [], 'Naive (ensemble)': []}
+    for approach in y_naive.keys():
+        for i in range(len(X_syns)):
+            if approach == 'Naive (single)':
+                X_syn_0 = [X_syns[i]]
+            else:
+                X_syn_0 = [X_syns[i] for _ in range(len(X_syns))]
+            
+            y_pred_mean, y_pred_std, models = aggregate(
+                    X_test, X_syn_0, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename=f'naive_m{i}_')
+            
+            if i==0 and d == 2 and plot:
+                aggregate_imshow(
+                    X_test, X_syn_0, supervised_task, models=models, results_folder=results_folder, task_type=task_type, load=load, save=save, filename=f'naive_m{i}_')
+                
+            if i==0:
+                y_preds[approach] = y_pred_mean
+        
+            y_naive[approach].append(y_pred_mean)
 
-    y_preds['Naive (single)'] = y_pred_mean
-
-    # Single dataset model ensemble
-    X_syn_0 = [X_syns[1] for _ in range(len(X_syns))]
-    if X_test.shape[1] == 2:
-        y_pred_mean, y_pred_std, models = aggregate_imshow(
-            X_test, X_syn_0, supervised_task, models=None, task_type=task_type, load=load, save=save, filename='naive_ensemble')
-    else:
-        y_pred_mean, y_pred_std, models = aggregate(
-            X_test, X_syn_0, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='naive_ensemble')
-
-    y_preds['Naive (ensemble)'] = y_pred_mean
 
     # Data aggregated
     X_syn_cat = pd.concat([X_syns[i].dataframe()
@@ -77,13 +83,13 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
     X_syn_cat = [X_syn_cat]
     #X_syn_cat = [X_syn_cat.sample(len(X_syns[0])) for _ in range(len(X_syns))]
 
-    if X_test.shape[1] == 2:
-        y_pred_mean, y_pred_std, models = aggregate_imshow(
-            X_test, X_syn_cat, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
-    else:
-        y_pred_mean, y_pred_std, models = aggregate(
+    y_pred_mean, y_pred_std, models = aggregate(
             X_test, X_syn_cat, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
 
+    if d == 2 and plot:
+        aggregate_imshow(
+            X_test, X_syn_cat, supervised_task, models=models, results_folder=results_folder, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
+        
     y_preds['Naive (concat)'] = y_pred_mean
 
     # Oracle
@@ -91,24 +97,26 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
     X_oracle.targettype = X_syns[0].targettype
     X_oracle = [X_oracle]
 
-    if X_test.shape[1] == 2:
-        y_pred_mean, _, _ = aggregate_imshow(
-            X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
-    else:
-        y_pred_mean, _, _ = aggregate(
+    y_pred_mean, _, models = aggregate(
             X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
 
+    if d == 2 and plot:
+        aggregate_imshow(
+            X_test, X_oracle, supervised_task, models=models, results_folder=results_folder, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
+    
     y_preds['Oracle (single)'] = y_pred_mean
 
+    
+    # Oracle ensemble
     X_oracle = X_oracle * len(X_syns)
+    
+    y_pred_mean, _, models = aggregate(
+            X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
 
-    if X_test.shape[1] == 2:
+    if d == 2 and plot:
         y_pred_mean, _, _ = aggregate_imshow(
-            X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
-    else:
-        y_pred_mean, _, _ = aggregate(
-            X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
-
+            X_test, X_oracle, supervised_task, models=models, results_folder=results_folder, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
+        
     y_preds['Oracle (ensemble)'] = y_pred_mean
 
 
@@ -119,7 +127,7 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
         plt.figure(figsize=(10, 10))
         for key, y_pred in y_preds.items():
             y_true = X_test.dataframe()['target'].values
-            prob_true, prob_pred = calibration_curve(y_true, y_pred, n_bins=5)
+            prob_true, prob_pred = calibration_curve(y_true, y_pred, n_bins=10)
             plt.plot(prob_pred, prob_true, label = key)
         
         plt.xlabel = 'Mean predicted probability'
@@ -134,7 +142,8 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
                 os.makedirs(results_folder)
             plt.savefig(filename)
 
-        plt.show()
+        if plot:
+            plt.show()
 
     # Compute metrics
     scores = []
@@ -143,6 +152,21 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder='results
     
     scores = pd.concat(scores, axis=0)
     scores.index = y_preds.keys()
+    
+    for approach in y_naive.keys():
+        scores_naive = []
+        for y_pred in y_naive[approach]:
+            scores_naive.append(compute_metrics(X_test.unpack(as_numpy=True)[1], y_pred, X_test.targettype))
+        
+        
+        scores_naive = pd.concat(scores_naive, axis=0)
+        
+        scores.loc[f'{approach} median'] = np.median(scores_naive,axis=0)
+        scores.loc[f'{approach} mean'] = np.mean(scores_naive,axis=0)
+        scores.loc[f'{approach} std'] = np.std(scores_naive, axis=0)
+        scores.loc[f'{approach} min'] = np.min(scores_naive, axis=0)
+        scores.loc[f'{approach} max'] = np.max(scores_naive, axis=0)
+
     return y_preds, scores
 
 ##############################################################################################################
