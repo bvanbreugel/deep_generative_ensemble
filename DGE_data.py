@@ -44,7 +44,7 @@ def load_real_data(dataset, p_train=None, max_n=None):
     elif dataset == 'digits':
         X, y = load_digits(return_X_y=True, as_frame=True)
     elif dataset == 'moons':
-        X, y = make_moons(n_samples=10000, noise=0.3, random_state=0)
+        X, y = make_moons(n_samples=10000, noise=0.4, random_state=0)
         X = pd.DataFrame(X)
         if p_train is None:
             p_train = 0.1
@@ -137,7 +137,6 @@ def get_synthetic_data(X_gt,
         # Load data from disk if it exists and load_syn is True
         if os.path.exists(filename) and load_syn:
             X_syn = pickle.load(open(filename, "rb"))
-            X_syn.targettype = X_gt.targettype
 
         # Otherwise generate new data
         else:
@@ -148,13 +147,14 @@ def get_synthetic_data(X_gt,
             reproducibility.enable_reproducible_results(seed=i)
             syn_model = Plugins().get(model_name)
             syn_model.fit(X_train)
-            X_syn = syn_model.generate(count=nsyn)
-            X_syn.targettype = X_gt.targettype
-
+            X_syn = syn_model.generate(count=10*nsyn)
+            
             # save X_syn to disk as pickle
             if save:
                 pickle.dump(X_syn, open(filename, "wb"))
 
+        X_syn = GenericDataLoader(X_syn[:nsyn], target_column="target")
+        X_syn.targettype = X_gt.targettype
         X_syns.append(X_syn)
 
     if verbose:
