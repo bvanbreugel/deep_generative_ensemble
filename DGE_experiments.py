@@ -7,7 +7,7 @@ import os
 from synthcity.plugins.core.dataloader import GenericDataLoader
 from synthcity.utils import reproducibility
 
-from DGE_utils import supervised_task, aggregate_imshow, aggregate, density_estimation, aggregate_predictive, cat_dl, compute_metrics
+from DGE_utils import supervised_task, aggregate_imshow, aggregate, density_estimation, aggregate_predictive, cat_dl, compute_metrics, accuracy_confidence_curve
 
 ############################################################################################################
 # Model training. Predictive performance
@@ -124,7 +124,7 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
     if X_syns[0].targettype is 'classification':
         # Consider calibration of different approaches
-        plt.figure(figsize=(10, 10))
+        plt.figure(figsize=(6, 6))
         for key, y_pred in y_preds.items():
             y_true = X_test.dataframe()['target'].values
             prob_true, prob_pred = calibration_curve(y_true, y_pred, n_bins=10)
@@ -144,6 +144,27 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
         if plot:
             plt.show()
+        
+        plt.figure(figsize=(6, 6))
+        for key, y_pred in y_preds.items():
+            y_true = X_test.dataframe()['target'].values
+            thresholds, prob_true = accuracy_confidence_curve(y_true, y_pred, n_bins=20)
+            plt.plot(thresholds, prob_true, label = key)
+        
+        plt.xlabel = r'Confidence treshold \tau'
+        plt.ylabel = r'Accuracy on examples \hat{y}'
+
+        plt.legend()
+        
+        if save:
+            filename = os.path.join(results_folder, 'confidence_accuracy_curve.png')
+            if not os.path.exists(results_folder):
+                os.makedirs(results_folder)
+            plt.savefig(filename)
+
+        if plot:
+            plt.show()
+        
 
     # Compute metrics
     scores = []
@@ -204,7 +225,7 @@ def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='wo
     relative = 'l1'
     for i, model_type in enumerate(model_types):
         mean, std = model_evaluation_experiment(X_gt, X_syns, model_type, workspace_folder=workspace_folder, relative=relative, load=load, save=save)
-        res = str(mean) + ' ± ' + str(std)
+        res = str(mean[metric]) + ' ± ' + str(std[metric])
         results.append(res[metric])
         means.append(mean[metric])
     means = pd.concat(means, axis=1)
@@ -220,7 +241,6 @@ def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='wo
     results = results.loc[:, sorting]
     
     print(results)
-
     means_sorted = means.loc[:, sorting]
 
     for approach in approaches:
@@ -232,6 +252,17 @@ def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='wo
     print(means_sorted)
     
     return results, means_sorted
+
+
+def model_predictive_uncertainty_experiment(X_gt, X_syns, model_type, workspace_folder=None, results_folder=None, load=True, save=True):
+
+    if save and (results_folder is None or workspace_folder is None):
+        raise ValueError('Please provide a workspace and results folder')
+    if load and workspace_folder is None:
+        raise ValueError('Please provide a workspace folder')
+    
+    
+
 
 ##############################################################################################################
 

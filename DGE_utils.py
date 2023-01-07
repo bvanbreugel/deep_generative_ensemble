@@ -18,6 +18,17 @@ import pickle
 import matplotlib.pyplot as plt
 import torch
 
+def accuracy_confidence_curve(y_true, y_prob, n_bins=20):
+    thresholds = np.linspace(0.5, 0.95, n_bins)
+    y_pred = y_prob > 0.5
+    correct = y_true == y_pred
+    accs = np.zeros(n_bins)
+    
+    for i, threshold in enumerate(thresholds):
+        y_select = y_prob > threshold
+        accs[i] = np.mean(correct[y_select])
+        
+    return thresholds, accs
 
 def cat_dl(X_syns, n_limit=None):
     """
