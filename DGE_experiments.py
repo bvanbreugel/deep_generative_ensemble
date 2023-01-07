@@ -176,24 +176,25 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, workspace_folder = 'workspace', load=True, save=True):
     means = []
     stds = []
-    approaches = ['oracle', 'naive', 'dge']
+    approaches = ['Oracle', 'Naive', 'DGE (K=5)', 'DGE (K=10)', 'DGE (K=20)']
+    K = [None, None, 5, 10, 20]
     for i, approach in enumerate(approaches):
         folder = os.path.join(workspace_folder, approach)
         mean, std, _ = aggregate_predictive(
-            X_gt, X_syns, models=None, task_type=model_type, workspace_folder=folder, load=load, save=save, approach=approach, relative=relative, verbose=False)
+            X_gt, X_syns, models=None, task_type=model_type, workspace_folder=folder, load=load, save=save, approach=approach, relative=relative, verbose=False, K=K[i])
         means.append(mean)
         stds.append(std)
 
     means = pd.concat(means, axis=0)
     stds = pd.concat(stds, axis=0)
-    means *= 100
-    stds *= 100
-    means = means.round(2)
-    stds = stds.round(2)
-    res = means.astype(str) + ' ± ' + stds.astype(str)
-    res.index = approaches
-    res.index.Name = 'Approach'
-    return res, means, stds
+    means = means.round(3)
+    stds = stds.round(3)
+    
+    means.index = approaches
+    stds.index = approaches
+    means.index.Name = 'Approach'
+    stds.index.Name = 'Approach'
+    return means, stds
 
 
 def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='workspace', metric='accuracy', load=True, save=True):
@@ -202,10 +203,10 @@ def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='wo
     means = []
     relative = 'l1'
     for i, model_type in enumerate(model_types):
-        res, mean, _ = model_evaluation_experiment(X_gt, X_syns, model_type, workspace_folder=workspace_folder, relative=relative, load=load, save=save)
+        mean, std = model_evaluation_experiment(X_gt, X_syns, model_type, workspace_folder=workspace_folder, relative=relative, load=load, save=save)
+        res = str(mean) + ' ± ' + str(std)
         results.append(res[metric])
         means.append(mean[metric])
-
     means = pd.concat(means, axis=1)
     approaches = ['oracle', 'naive', 'DGE']
     means.index = approaches

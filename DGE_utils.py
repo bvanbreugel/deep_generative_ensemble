@@ -151,7 +151,7 @@ def tt_predict_performance(X_test, X_train, model=None, model_type='mlp', verbos
 
 
 def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None, task_type='', workspace_folder='workspace', results_folder='results', load=True, save=True,
-                         approach='us', relative=False, run_for_all=True, verbose=False):
+                         approach='DGE', relative=False, run_for_all=True, verbose=False, K=None):
     """
     aggregate predictions from different synthetic datasets
     """
@@ -159,8 +159,11 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
     results = []
     stds = []
     trained_models = []
-    filename = ''
-    fileroot = f'{workspace_folder}/{task.__name__}_{task_type}'
+    fileroot = os.path.join(workspace_folder, f'model_eval_{task_type}')
+    
+    if K is None:
+        K = len(X_syns)
+    
     if not os.path.exists(fileroot) and save:
         os.makedirs(fileroot)
 
@@ -168,13 +171,15 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
         range_limit = len(X_syns)
     else:
         range_limit = 1
+    
     for i in range(range_limit):
+        filename = f'{fileroot}_{i}.pkl'
         if models is None:
             if verbose:
-                print(f'Saving model as {fileroot}_{filename}{i}.pkl')
+                print(f'Saving model as {filename}')
 
-            if os.path.exists(f'{fileroot}_{filename}{i}.pkl') and load:
-                model = pickle.load(open(f"{fileroot}_{filename}{i}.pkl", "rb"))
+            if os.path.exists(filename) and load:
+                model = pickle.load(open(filename, "rb"))
             else:
                 model = None
                 print(f'Train model {i+1}/{len(X_syns)}')
@@ -182,26 +187,26 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
             model = models[i]
         reproducibility.enable_reproducible_results(seed=i+2022)
         X_train = X_syns[i].train()
-        if approach == 'naive':
+        if approach == 'Naive':
             X_test = X_syns[i].test()
-        elif approach == 'dge':
-            X_syns_not_i = [X_syns[j] for j in range(len(X_syns)) if j != i]
+        elif 'DGE' in approach:
+            X_syns_not_i = [X_syns[j] for j in range(len(X_syns)) if j != i][:K-1]
             X_syns_not_i[0].targettype = X_syns[0].targettype
             X_test = cat_dl(X_syns_not_i)
-        elif approach == 'dge_new':
+        elif approach == 'DGE_alternative':
             X_syns_not_i = [X_syns[j] for j in range(len(X_syns)) if j != i]
-        elif approach == 'oracle':
+        elif approach == 'Oracle':
             X_test = X_gt.test()
         else:
             raise ValueError('Unknown approach')
 
-        if not approach == 'us_new':
+        if not approach == 'DGE_alternative':
             X_test.targettype = X_syns[0].targettype
             X_train.targettype = X_syns[0].targettype
 
-            res, model = task(X_test, X_train, model, task_type, verbose)
+            res, model = task(X_test, X_train, model, task_type, verbose=verbose)
 
-            if relative and approach != 'oracle':
+            if relative and approach != 'Oracle':
                 X_test = X_gt.test()
                 X_test.targettype = X_syns[0].targettype
                 res_oracle, model = task(X_test, X_train, model, task_type, verbose)
@@ -215,7 +220,7 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
 
         else:
             if relative:
-                raise ValueError('Relative not implemented for us_new')
+                raise ValueError('Relative not implemented for DGE_alternative')
             res = []
             for j in range(len(X_syns_not_i)):
                 X_test = X_syns_not_i[j].test()
@@ -230,10 +235,10 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
         trained_models.append(model)
         # save model to disk as pickle
         if models is None and save:
-            pickle.dump(model, open(f"{fileroot}_{filename}{i}.pkl", "wb"))
+            pickle.dump(model, open(filename, "wb"))
 
     results = pd.concat(results, axis=0)
-    if approach != 'us_new':
+    if approach != 'DGE_alternative':
         return *meanstd(results), trained_models
     else:
         stds = pd.concat(stds, axis=0)
