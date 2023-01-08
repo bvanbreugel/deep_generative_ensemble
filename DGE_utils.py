@@ -18,6 +18,9 @@ import pickle
 import matplotlib.pyplot as plt
 import torch
 
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+        
+
 def accuracy_confidence_curve(y_true, y_prob, n_bins=20):
     thresholds = np.linspace(0.5, 0.95, n_bins)
     y_pred = y_prob > 0.5
@@ -25,7 +28,7 @@ def accuracy_confidence_curve(y_true, y_prob, n_bins=20):
     accs = np.zeros(n_bins)
     
     for i, threshold in enumerate(thresholds):
-        y_select = y_prob > threshold
+        y_select = (y_prob > threshold) + (y_prob < (1 - threshold))
         accs[i] = np.mean(correct[y_select])
         
     return thresholds, accs
@@ -70,6 +73,14 @@ def init_model(model_type, targettype):
             model = sklearn.neural_network.MLPClassifier()
         else:
             model = sklearn.neural_network.MLPRegressor()
+    elif model_type == 'deepish_mlp':
+        if targettype == 'classification':
+            model = sklearn.neural_network.MLPClassifier(
+                hidden_layer_sizes=(100, 100))
+        else:
+            model = sklearn.neural_network.MLPRegressor(
+                hidden_layer_sizes=(100, 100))
+    
     elif model_type == 'deep_mlp':
         if targettype == 'classification':
             model = sklearn.neural_network.MLPClassifier(
@@ -177,7 +188,7 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
     
     if not os.path.exists(fileroot) and save:
         os.makedirs(fileroot)
-
+    
     if run_for_all:
         range_limit = len(X_syns)
     else:
@@ -193,25 +204,26 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
                 model = pickle.load(open(filename, "rb"))
             else:
                 model = None
-                print(f'Train model {i+1}/{len(X_syns)}')
+                if verbose:
+                    print(f'Train model {i+1}/{len(X_syns)}')
         else:
             model = models[i]
         reproducibility.enable_reproducible_results(seed=i+2022)
         X_train = X_syns[i].train()
         if approach == 'Naive':
             X_test = X_syns[i].test()
+        elif 'alternative' in approach:
+            X_syns_not_i = [X_syns[j] for j in range(len(X_syns)) if j != i][:K-1]
         elif 'DGE' in approach:
             X_syns_not_i = [X_syns[j] for j in range(len(X_syns)) if j != i][:K-1]
             X_syns_not_i[0].targettype = X_syns[0].targettype
             X_test = cat_dl(X_syns_not_i)
-        elif approach == 'DGE_alternative':
-            X_syns_not_i = [X_syns[j] for j in range(len(X_syns)) if j != i]
         elif approach == 'Oracle':
             X_test = X_gt.test()
         else:
             raise ValueError('Unknown approach')
 
-        if not approach == 'DGE_alternative':
+        if not 'alternative' in approach:
             X_test.targettype = X_syns[0].targettype
             X_train.targettype = X_syns[0].targettype
 
@@ -239,7 +251,6 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
                 X_train.targettype = X_syns[0].targettype
                 res.append(task(X_test, X_train, model, task_type, verbose)[0])
             res, std = meanstd(pd.concat(res, axis=0))
-            res = res
             stds.append(std)
 
         results.append(res)
@@ -361,11 +372,12 @@ def aggregate(X_gt, X_syns, task, models=None, task_type='', load=True, save=Tru
 
     for i in range(len(X_syns)):
         if models is None:
+            full_filename = f'{fileroot}_{filename}_{i}.pkl'
             if verbose:
-                print(f'Saving model as {fileroot}_{filename}{i}.pkl')
+                print(f'Saving model as {full_filename}')
 
-            if os.path.exists(f'{fileroot}_{filename}{i}.pkl') and load:
-                model = pickle.load(open(f"{fileroot}_{filename}{i}.pkl", "rb"))
+            if os.path.exists(full_filename) and load:
+                model = pickle.load(open(full_filename, "rb"))
             else:
                 model = None
                 if verbose:
@@ -378,7 +390,7 @@ def aggregate(X_gt, X_syns, task, models=None, task_type='', load=True, save=Tru
         trained_models.append(model)
         # save model to disk as pickle
         if models is None and save:
-            pickle.dump(model, open(f"{fileroot}_{filename}{i}.pkl", "wb"))
+            pickle.dump(model, open(full_filename, "wb"))
 
     return *meanstd(results), trained_models
 
@@ -418,34 +430,48 @@ def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_fold
         load=load,
         save=save,
         workspace_folder=workspace_folder,
-        filename=f'n{len(X_gt.train().unpack()[0])}_{filename}')
+        filename=filename)
 
     for y, stat in zip((y_pred_mean, y_pred_std), ('mean', 'std')):
-        plt.figure(figsize=(8, 6), dpi=100)
-        plt.imshow(y.reshape(steps, steps)[::-1],
+        fig = plt.figure(figsize=(4, 3), dpi=200, tight_layout=False)
+        ax = plt.axes()
+        im = ax.imshow(y.reshape(steps, steps)[::-1],
                    cmap='viridis', extent=[xmin, xmax, ymin, ymax])
-        plt.colorbar()
+        
         if 'gaussian' in results_folder:
             plt.vlines(0, ymin, ymax, colors='r', linestyles='dashed')
+        
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        #cax = fig.add_axes([ax.get_position().x1+0.01,ax.get_position().y0,0.02,ax.get_position().height])
+        plt.colorbar(im, cax=cax) 
+        
+        
         if save:
-            filename_base = os.path.join(results_folder, f'{task.__name__}_n{len(X_gt.train().unpack()[0])}_{filename}{stat}')
+            filename_base = results_folder+f'{task.__name__}_{filename}{stat}'
             print(f'Saving {filename_base}.png')
-            os.makedirs(results_folder, exist_ok=True)
             plt.savefig(filename_base+'.png')
+        
         plt.show()
 
         X_train, y_train = X_gt.train().unpack(as_numpy=True)
             
-        if len(np.unique(y_train)) == 2:
-            plt.imshow(y.reshape(steps, steps)[
+        if len(np.unique(y_train)) == 2 and 'oracle' in filename.lower():
+            fig = plt.figure(figsize=(4, 3), dpi=200, tight_layout=False)
+            ax = plt.axes()
+            im = ax.imshow(y.reshape(steps, steps)[
                        ::-1], cmap='viridis', extent=[xmin, xmax, ymin, ymax])
             y_train = y_train.astype(bool)
             plt.scatter(X_train[y_train, 0], X_train[y_train, 1], c='k', marker='.')
             plt.scatter(X_train[~y_train, 0], X_train[~y_train, 1], c='w', marker='.')
-            plt.colorbar()
             if 'gaussian' in results_folder:
                 plt.vlines(0, ymin, ymax, colors='r', linestyles='dashed')
             
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes("right", size="5%", pad=0.05)
+            plt.colorbar(im, cax=cax)     
+            
+
             if save:
                 plt.savefig(f'{filename_base}_with_samples.png')
 

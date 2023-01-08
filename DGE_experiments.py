@@ -60,51 +60,52 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
             if approach == 'Naive (single)':
                 X_syn_0 = [X_syns[i]]
             else:
-                X_syn_0 = [X_syns[i] for _ in range(len(X_syns))]
+                X_syn_0 = [X_syns[i]] * len(X_syns)
             
             y_pred_mean, y_pred_std, models = aggregate(
                     X_test, X_syn_0, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename=f'naive_m{i}_')
             
-            if i==0 and d == 2 and plot:
+            if i==0 and d == 2 and 'ensemble' in approach:
                 aggregate_imshow(
                     X_test, X_syn_0, supervised_task, models=models, results_folder=results_folder, task_type=task_type, load=load, save=save, filename=f'naive_m{i}_')
                 
-            if i==0:
-                y_preds[approach] = y_pred_mean
-        
+            if i==0 and 'ensemble' in approach:
+                y_preds['Naive'] = y_pred_mean
+
             y_naive[approach].append(y_pred_mean)
 
-
     # Data aggregated
-    X_syn_cat = pd.concat([X_syns[i].dataframe()
-                            for i in range(len(X_syns))], axis=0)
-    X_syn_cat = GenericDataLoader(X_syn_cat, target_column="target")
-    X_syn_cat.targettype = X_syns[0].targettype
-    X_syn_cat = [X_syn_cat]
-    #X_syn_cat = [X_syn_cat.sample(len(X_syns[0])) for _ in range(len(X_syns))]
+    # X_syn_cat = pd.concat([X_syns[i].dataframe()
+    #                         for i in range(len(X_syns))], axis=0)
+    # X_syn_cat = GenericDataLoader(X_syn_cat, target_column="target")
+    # X_syn_cat.targettype = X_syns[0].targettype
+    # X_syn_cat = [X_syn_cat]
+    # #X_syn_cat = [X_syn_cat.sample(len(X_syns[0])) for _ in range(len(X_syns))]
 
-    y_pred_mean, y_pred_std, models = aggregate(
-            X_test, X_syn_cat, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
+    # y_pred_mean, y_pred_std, models = aggregate(
+    #         X_test, X_syn_cat, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
 
-    if d == 2 and plot:
-        aggregate_imshow(
-            X_test, X_syn_cat, supervised_task, models=models, results_folder=results_folder, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
+    # if d == 2 and plot:
+    #     aggregate_imshow(
+    #         X_test, X_syn_cat, supervised_task, models=models, results_folder=results_folder, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
         
-    y_preds['Naive (concat)'] = y_pred_mean
+    # y_preds['Naive (concat)'] = y_pred_mean
 
     # Oracle
     X_oracle = X_gt.train()
     X_oracle.targettype = X_syns[0].targettype
-    X_oracle = [X_oracle]
-
-    y_pred_mean, _, models = aggregate(
-            X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
-
-    if d == 2 and plot:
-        aggregate_imshow(
-            X_test, X_oracle, supervised_task, models=models, results_folder=results_folder, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
     
-    y_preds['Oracle (single)'] = y_pred_mean
+    X_oracle = [X_oracle]
+    
+    if False:
+        y_pred_mean, _, models = aggregate(
+                X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
+
+        if d == 2 and plot:
+            aggregate_imshow(
+                X_test, X_oracle, supervised_task, models=models, results_folder=results_folder, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
+        
+        y_preds['Oracle (single)'] = y_pred_mean
 
     
     # Oracle ensemble
@@ -114,17 +115,17 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
             X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
 
     if d == 2 and plot:
-        y_pred_mean, _, _ = aggregate_imshow(
+        aggregate_imshow(
             X_test, X_oracle, supervised_task, models=models, results_folder=results_folder, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
         
-    y_preds['Oracle (ensemble)'] = y_pred_mean
+    y_preds['Oracle'] = y_pred_mean
 
 
 
 
     if X_syns[0].targettype is 'classification':
         # Consider calibration of different approaches
-        plt.figure(figsize=(6, 6))
+        fig = plt.figure(figsize=(4, 4), tight_layout=False, dpi=200)
         for key, y_pred in y_preds.items():
             y_true = X_test.dataframe()['target'].values
             prob_true, prob_pred = calibration_curve(y_true, y_pred, n_bins=10)
@@ -137,36 +138,42 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
         plt.legend()
         
         if save:
-            filename = os.path.join(results_folder, 'calibration_curve.png')
+            filename = results_folder+'_calibration_curve.png'
             if not os.path.exists(results_folder):
                 os.makedirs(results_folder)
-            plt.savefig(filename)
+            fig.savefig(filename, dpi=200)
 
         if plot:
             plt.show()
         
-        plt.figure(figsize=(6, 6))
+        plt.close()
+        
+        plt.figure(figsize=(4, 4), dpi=200, tight_layout=False)
         for key, y_pred in y_preds.items():
             y_true = X_test.dataframe()['target'].values
             thresholds, prob_true = accuracy_confidence_curve(y_true, y_pred, n_bins=20)
             plt.plot(thresholds, prob_true, label = key)
         
-        plt.xlabel = r'Confidence treshold \tau'
+        plt.xlabel = r'Confidence threshold \tau'
         plt.ylabel = r'Accuracy on examples \hat{y}'
 
         plt.legend()
         
         if save:
-            filename = os.path.join(results_folder, 'confidence_accuracy_curve.png')
+            filename = results_folder+'_confidence_accuracy_curve.png'
             if not os.path.exists(results_folder):
                 os.makedirs(results_folder)
-            plt.savefig(filename)
+            plt.savefig(filename, dpi=200)
 
         if plot:
             plt.show()
         
-
+        plt.close()
+    
+    
     # Compute metrics
+    del y_preds['Naive']
+
     scores = []
     for key, y_pred in y_preds.items():
         scores.append(compute_metrics(X_test.unpack(as_numpy=True)[1], y_pred, X_test.targettype))
@@ -194,15 +201,17 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
 # Model evaluation and selection experiments
 
-def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, workspace_folder = 'workspace', load=True, save=True):
+def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, workspace_folder = 'workspace', load=True, save=True, verbose=False):
     means = []
     stds = []
     approaches = ['Oracle', 'Naive', 'DGE (K=5)', 'DGE (K=10)', 'DGE (K=20)']
     K = [None, None, 5, 10, 20]
     for i, approach in enumerate(approaches):
+        if verbose:
+            print('Approach: ', approach)
         folder = os.path.join(workspace_folder, approach)
         mean, std, _ = aggregate_predictive(
-            X_gt, X_syns, models=None, task_type=model_type, workspace_folder=folder, load=load, save=save, approach=approach, relative=relative, verbose=False, K=K[i])
+            X_gt, X_syns, models=None, task_type=model_type, workspace_folder=folder, load=load, save=save, approach=approach, relative=relative, verbose=verbose, K=K[i])
         means.append(mean)
         stds.append(std)
 
@@ -226,7 +235,7 @@ def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='wo
     for i, model_type in enumerate(model_types):
         mean, std = model_evaluation_experiment(X_gt, X_syns, model_type, workspace_folder=workspace_folder, relative=relative, load=load, save=save)
         res = str(mean[metric]) + ' ± ' + str(std[metric])
-        results.append(res[metric])
+        results.append(res)
         means.append(mean[metric])
     means = pd.concat(means, axis=1)
     approaches = ['oracle', 'naive', 'DGE']
