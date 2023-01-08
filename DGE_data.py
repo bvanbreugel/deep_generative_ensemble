@@ -34,7 +34,7 @@ def load_real_data(dataset, p_train=0.8, max_n=None):
     elif dataset == 'digits':
         X, y = load_digits(return_X_y=True, as_frame=True)
     elif dataset == 'moons':
-        X, y = make_moons(n_samples=10000, noise=0.4, random_state=0)
+        X, y = make_moons(n_samples=10000, noise=0.2, random_state=0)
         X = pd.DataFrame(X)
     elif dataset == 'circles':
         X, y = make_circles(n_samples=10000, noise=0.3, factor=0.5, random_state=0)
