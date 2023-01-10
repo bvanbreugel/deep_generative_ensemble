@@ -109,21 +109,18 @@ def get_synthetic_data(X_gt,
         if os.path.exists(filename) and load_syn:
             X_syn = pickle.load(open(filename, "rb"))
 
-        # Otherwise generate new data
-        else:
-
-            if verbose:
-                print(f"Training model {i+1}/{n_models}")
-
-            reproducibility.enable_reproducible_results(seed=i)
-            syn_model = Plugins().get(model_name)
-            syn_model.fit(X_train)
-            X_syn = syn_model.generate(count=np.min([10*nsyn, 20000]))
+            if len(X_syn)<nsyn:
+                # generate more data if nsyn is too small
+                if verbose:
+                    print('Generating more data, existing dataset is smaller than nsyn')
+                X_syn = generate_synthetic(model_name, n_models, save, verbose, X_train, i, filename)
             
-            # save X_syn to disk as pickle
-            if save:
-                pickle.dump(X_syn, open(filename, "wb"))
-
+        else:
+            # Otherwise generate new data
+            if verbose:
+                print('Generating new data, filename is', filename)
+            X_syn = generate_synthetic(model_name, n_models, save, verbose, X_train, i, filename)
+            
         X_syn = GenericDataLoader(X_syn[:nsyn], target_column="target")
         X_syn.targettype = X_gt.targettype
         X_syns.append(X_syn)
@@ -138,6 +135,25 @@ def get_synthetic_data(X_gt,
         plt.scatter(b[:, 0], b[:, 1], marker='.')
 
     return X_syns
+
+def generate_synthetic(model_name, n_models, save, verbose, X_train, i, filename):
+    if verbose:
+        print(f"Training model {i+1}/{n_models}")
+
+    reproducibility.enable_reproducible_results(seed=i)
+    if '_deep' in model_name:
+        syn_model = Plugins().get(model_name.replace('_deep', ''), discriminator_n_layers_hidden=3, generator_n_layers_hidden=3)
+    else:
+        syn_model = Plugins().get(model_name)
+    syn_model.fit(X_train)
+    X_syn = syn_model.generate(count=20000) # we won't need more in any experiment
+            
+            # save X_syn to disk as pickle
+    if save:
+        pickle.dump(X_syn, open(filename, "wb"))
+
+    
+    return X_syn
 
 
 def get_real_and_synthetic(dataset,
@@ -161,7 +177,7 @@ def get_real_and_synthetic(dataset,
     if nsyn == 'train' or nsyn is None:
         nsyn = n_train
 
-    data_folder = "synthetic_data/"+dataset+"/"+model_name
+    data_folder = os.path.join("synthetic_data",dataset,model_name)
     print('n_total', X_gt.shape[0], 'n_train:', n_train)
 
     # generate synthetic data for all number of training samples

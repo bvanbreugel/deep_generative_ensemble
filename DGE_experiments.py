@@ -5,7 +5,6 @@ import numpy as np
 import os
 
 from synthcity.plugins.core.dataloader import GenericDataLoader
-from synthcity.utils import reproducibility
 
 from DGE_utils import supervised_task, aggregate_imshow, aggregate, density_estimation, aggregate_predictive, cat_dl, compute_metrics, accuracy_confidence_curve
 
@@ -13,7 +12,7 @@ from DGE_utils import supervised_task, aggregate_imshow, aggregate, density_esti
 # Model training. Predictive performance
 
 
-def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, workspace_folder='workspace', load=True, save=True, plot=False):
+def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, workspace_folder='workspace', load=True, save=True, plot=False, outlier=False):
     """Compares predictions by different approaches.
 
     Args:
@@ -30,8 +29,16 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
         raise ValueError('results_folder must be specified when save=True.')
 
     X_test = X_gt.test()
-    X_test.targettype = X_gt.targettype
     d = X_test.unpack(as_numpy=True)[0].shape[1]
+
+    if outlier:
+        subset = outlier_compute(X_gt)
+        X_test = subset(X_test)
+        plot=False
+    
+
+    X_test.targettype = X_gt.targettype
+
     if not X_gt.targettype in ['regression', 'classification']:
         raise ValueError('X_gt.targettype must be regression or classification.')
 
@@ -65,7 +72,7 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
             y_pred_mean, y_pred_std, models = aggregate(
                     X_test, X_syn_0, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename=f'naive_m{i}_')
             
-            if i==0 and d == 2 and 'ensemble' in approach:
+            if i==0 and d == 2 and plot and 'ensemble' in approach:
                 aggregate_imshow(
                     X_test, X_syn_0, supervised_task, models=models, results_folder=results_folder, task_type=task_type, load=load, save=save, filename=f'naive_m{i}_')
                 
@@ -123,7 +130,7 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
 
 
-    if X_syns[0].targettype is 'classification':
+    if X_syns[0].targettype is 'classification' and plot:
         # Consider calibration of different approaches
         fig = plt.figure(figsize=(4, 4), tight_layout=False, dpi=200)
         for key, y_pred in y_preds.items():
@@ -201,23 +208,33 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
 # Model evaluation and selection experiments
 
-def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, workspace_folder = 'workspace', load=True, save=True, verbose=False):
+from DGE_utils import outlier_compute
+
+def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, workspace_folder = None, load=True, save=True, outlier=False, verbose=False):
     means = []
     stds = []
     approaches = ['Oracle', 'Naive', 'DGE (K=5)', 'DGE (K=10)', 'DGE (K=20)']
     K = [None, None, 5, 10, 20]
+    if outlier:
+        subset = outlier_compute(X_gt)
+    else:
+        subset = None
+
     for i, approach in enumerate(approaches):
         if verbose:
             print('Approach: ', approach)
         folder = os.path.join(workspace_folder, approach)
         mean, std, _ = aggregate_predictive(
-            X_gt, X_syns, models=None, task_type=model_type, workspace_folder=folder, load=load, save=save, approach=approach, relative=relative, verbose=verbose, K=K[i])
+            X_gt, X_syns, models=None, task_type=model_type, workspace_folder=folder, load=load, save=save, approach=approach, relative=relative, subset=subset, verbose=verbose, K=K[i])
         means.append(mean)
         stds.append(std)
 
     means = pd.concat(means, axis=0)
     stds = pd.concat(stds, axis=0)
-    means = means.round(3)
+    if relative=='rmse':
+        means = np.sqrt(means)
+    if relative!='l2':
+        means = means.round(3)
     stds = stds.round(3)
     
     means.index = approaches
@@ -263,12 +280,12 @@ def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='wo
     return results, means_sorted
 
 
-def model_predictive_uncertainty_experiment(X_gt, X_syns, model_type, workspace_folder=None, results_folder=None, load=True, save=True):
+# def model_predictive_uncertainty_experiment(X_gt, X_syns, model_type, workspace_folder=None, results_folder=None, load=True, save=True):
 
-    if save and (results_folder is None or workspace_folder is None):
-        raise ValueError('Please provide a workspace and results folder')
-    if load and workspace_folder is None:
-        raise ValueError('Please provide a workspace folder')
+#     if save and (results_folder is None or workspace_folder is None):
+#         raise ValueError('Please provide a workspace and results folder')
+#     if load and workspace_folder is None:
+#         raise ValueError('Please provide a workspace folder')
     
     
 

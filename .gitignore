@@ -60,6 +60,7 @@ weight_checkpoint*
 
 workspace
 workspace_test
+workspace_backup
 output
 diagrams
 data/*.csv
