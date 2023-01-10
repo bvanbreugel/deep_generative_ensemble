@@ -152,13 +152,31 @@ def compute_metrics(y_test, yhat_test, targettype='classification'):
     return scores
 
 
-def tt_predict_performance(X_test, X_train, model=None, model_type='mlp', verbose=False):
+def outlier_compute(X):
+    center = X.unpack(as_numpy=True)[0].mean(axis=0)
+    dis_to_center = lambda x: np.sum((x.unpack(as_numpy=True)[0]-center)**2,axis=1)
+    threshold = np.quantile(dis_to_center(X), 0.9)
+    
+    def subset(X):
+        Xout = X[dis_to_center(X)>threshold]
+        if type(Xout) == pd.DataFrame:
+            Xout = GenericDataLoader(Xout, target='target')
+            if hasattr(X, 'targettype'):
+                Xout.targettype = X.targettype
+        return X
+    
+    return subset
+
+
+def tt_predict_performance(X_test, X_train, model=None, model_type='mlp', subset=None, verbose=False):
     """compute train_test performance for different metrics"""
     # import metrics
 
     x_train, y_train = X_train.unpack(as_numpy=True)
+    if subset is not None:
+        X_test = subset(X_test)
     x_test, y_test = X_test.unpack(as_numpy=True)
-
+    
     if model is None:
         model = init_model(model_type, X_test.targettype)
         model.fit(x_train, y_train)
@@ -172,8 +190,8 @@ def tt_predict_performance(X_test, X_train, model=None, model_type='mlp', verbos
     return scores, model
 
 
-def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None, task_type='', workspace_folder='workspace', results_folder='results', load=True, save=True,
-                         approach='DGE', relative=False, run_for_all=True, verbose=False, K=None):
+def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None, task_type='', workspace_folder=None, results_folder='results', load=True, save=True,
+                         approach='DGE', relative=False, run_for_all=True, verbose=False, K=None, subset=None):
     """
     aggregate predictions from different synthetic datasets
     """
@@ -197,15 +215,12 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
     for i in range(range_limit):
         filename = f'{fileroot}_{i}.pkl'
         if models is None:
-            if verbose:
-                print(f'Saving model as {filename}')
-
             if os.path.exists(filename) and load:
                 model = pickle.load(open(filename, "rb"))
             else:
                 model = None
                 if verbose:
-                    print(f'Train model {i+1}/{len(X_syns)}')
+                    print(f'Train model {i+1}/{len(X_syns)} and save as {filename}')
         else:
             model = models[i]
         reproducibility.enable_reproducible_results(seed=i+2022)
@@ -227,14 +242,14 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
             X_test.targettype = X_syns[0].targettype
             X_train.targettype = X_syns[0].targettype
 
-            res, model = task(X_test, X_train, model, task_type, verbose=verbose)
+            res, model = task(X_test, X_train, model, task_type, subset=subset, verbose=verbose)
 
             if relative and approach != 'Oracle':
                 X_test = X_gt.test()
                 X_test.targettype = X_syns[0].targettype
-                res_oracle, model = task(X_test, X_train, model, task_type, verbose)
+                res_oracle, model = task(X_test, X_train, model, task_type, subset=subset, verbose=verbose)
 
-                if relative == 'l2':
+                if relative in ['l2']:
                     res = (res - res_oracle)**2
                 elif relative == 'l1':
                     res = (res - res_oracle).abs()
@@ -249,7 +264,7 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
                 X_test = X_syns_not_i[j].test()
                 X_test.targettype = X_syns[0].targettype
                 X_train.targettype = X_syns[0].targettype
-                res.append(task(X_test, X_train, model, task_type, verbose)[0])
+                res.append(task(X_test, X_train, model, task_type, subset=subset, verbose=verbose)[0])
             res, std = meanstd(pd.concat(res, axis=0))
             stds.append(std)
 
@@ -478,3 +493,56 @@ def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_fold
             plt.show()
 
     return y_pred_mean, y_pred_std, models
+
+
+
+######## paper/results/ formatting
+
+def get_folder_names(dataset, model_name, max_n, nsyn):
+    workspace_folder = os.path.join(
+        "workspace", dataset, model_name, f'nmax_{max_n}_nsyn_{nsyn}')
+    results_folder = os.path.join(
+        "uncertainty_results", f'{dataset}_{model_name}_nmax_{max_n}_nsyn_{nsyn}')
+    return workspace_folder, results_folder
+
+
+def mean_across_pandas(dfs, precision=3):
+    dfs = pd.concat(dfs.values())
+    df_mean = dfs.groupby(level=0).mean()
+    df_mean = df_mean.round(precision)
+    print(df_mean.to_latex(float_format=lambda x: f'%.{precision}f' % x))
+    return df_mean
+
+# use scores but report per dataset
+def metric_different_datasets(dfs, metric='AUC', to_print=True, precision=3):
+    df_all_datasets = pd.concat([score[metric] for score in dfs.values()], axis=1)
+    df_all_datasets.columns = dfs.keys()
+    df_all_datasets.round(precision)
+
+    for dataset in zip(['moons', 'circles', 'adult', 'breast_cancer', 'seer', 'cutract'][::-1],
+                       ['Moons', 'Circles', 'Adult Income', 'Breast Cancer', 'SEER', 'CUTRACT'][::-1]):
+        try:
+            df_all_datasets.insert(0, dataset[1], df_all_datasets.pop(dataset[0]))
+        except:
+            continue
+    df_all_datasets['Mean'] = df_all_datasets.mean(axis=1)
+
+    if to_print:
+        print(df_all_datasets.to_latex(float_format=lambda x: f'%.{precision}f' % x))
+
+    return df_all_datasets
+
+
+def add_std(df, std, precision=3):
+    formatting_string = '{.'+str(precision)+'f'
+    df = df.round(precision)
+    std = std.round(precision)
+    df.style.format(precision=3, formatter=formatting_string)
+    std.style.format(precision=3, formatter=formatting_string)
+    df= df.astype(str)
+    std = std.astype(str)
+    for column in df.columns:
+        if column in std.columns:
+            df[column] = df[column] + ' ± ' + std[column]
+    return df
+
