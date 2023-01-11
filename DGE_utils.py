@@ -1,5 +1,5 @@
 import xgboost
-from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, precision_score, recall_score, r2_score, mean_squared_error, mean_absolute_error, log_loss, brier_score_loss
+from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, precision_score, recall_score, mean_squared_error, mean_absolute_error, log_loss, brier_score_loss
 from sklearn.model_selection import KFold, train_test_split
 import sklearn
 from sklearn.preprocessing import StandardScaler

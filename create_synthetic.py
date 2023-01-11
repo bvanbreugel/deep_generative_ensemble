@@ -30,11 +30,11 @@ from DGE_data import get_real_and_synthetic
 # let's restrict ourselves to classification datasets
 datasets = ['moons', 'circles', 'adult',  'breast_cancer',  'seer', 'cutract' ] 
 #['moons', 'circles','cal_housing', 'adult', 'diabetes', 'breast_cancer',  'seer', 'cutract' ] 
-model_name = 'ctgan'  # synthetic data model
+model_name = 'ctgan_deep'  # synthetic data model
     
 p_train = 0.8  # proportion of training data for generative model. Default values if None
 n_models = 20  # number of models in ensemble
-max_n = 5000 # maximum number of data points to use for training generative model.
+#max_n = 5000 # maximum number of data points to use for training generative model.
 nsyn = None  # number of synthetic data points per synthetic dataset. Defaults to same as generative training size if None
 
 load = True  # results
@@ -43,8 +43,8 @@ save = True  # save results and data
 
 verbose = False
 
-for max_n in [200, 500, 1000, 2000, 5000, 10000]:
-    for dataset in datasets:
+for max_n in [500, 1000, 2000, 5000, 10000]:#, 5000, 10000]:
+    for dataset in ['gaussian']:#datasets:
         print('Dataset:', dataset)
         X_gt, X_syns = get_real_and_synthetic(dataset=dataset,
                                             p_train=p_train,

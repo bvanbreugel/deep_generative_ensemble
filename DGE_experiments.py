@@ -45,9 +45,8 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
     y_preds = {}
 
     # DGE (k=5, 10, 20)
-    if len(X_syns) != 20:
-        raise ValueError('X_syns assumed to have 20 elements in this experiment.')
-
+    
+    
     for k in [20, 10, 5]:
         
         y_pred_mean, y_pred_std, models = aggregate(
@@ -244,41 +243,51 @@ def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, worksp
     return means, stds
 
 
-def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='workspace', metric='accuracy', load=True, save=True):
+def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='workspace', load=True, save=True, outlier=False):
     model_types = ['lr', 'mlp', 'deep_mlp', 'rf', 'knn', 'svm', 'xgboost']
-    results = []
-    means = []
-    relative = 'l1'
+    all_stds = []
+    all_means = []
+    output_means = {}
+    output_stds = {}
+    
     for i, model_type in enumerate(model_types):
-        mean, std = model_evaluation_experiment(X_gt, X_syns, model_type, workspace_folder=workspace_folder, relative=relative, load=load, save=save)
-        res = str(mean[metric]) + ' ± ' + str(std[metric])
-        results.append(res)
-        means.append(mean[metric])
-    means = pd.concat(means, axis=1)
-    approaches = ['oracle', 'naive', 'DGE']
-    means.index = approaches
-    means.columns = model_types
-    results = pd.concat(results, axis=1)
-    results.columns = model_types
-
-    # sort based on oracle
-    sorting = [model_types[i] for i in means.loc['oracle'].argsort()]
-    means = means.loc[:, sorting]
-    results = results.loc[:, sorting]
+        mean, std = model_evaluation_experiment(X_gt, X_syns, model_type, workspace_folder=workspace_folder, relative=relative, load=load, save=save, outlier=outlier)
+        all_means.append(mean)
+        all_stds.append(std)
     
-    print(results)
-    means_sorted = means.loc[:, sorting]
 
-    for approach in approaches:
-        sorting_k = means_sorted.loc[approach].argsort()
-        sorting_k = sorting_k.argsort()
-        means_sorted.loc[approach+' rank'] = sorting_k.astype(int)+1
+    for metric in mean.columns:
+        means = []
+        stds = []
+        for i, model_type in enumerate(model_types):
+            means.append(all_means[i][metric])
+            stds.append(all_stds[i][metric])
+        
+        means = pd.concat(means, axis=1)
+        stds = pd.concat(stds,axis=1)
+        means.columns = model_types
+        stds.columns = model_types
+        approaches = mean.index
+        means.index = approaches
+        stds.index = approaches
+        
+        # sort based on oracle
+        sorting = [model_types[i] for i in means.loc['Oracle'].argsort()]
+        means_sorted = means.loc[:, sorting]
+        stds_sorted = stds.loc[:, sorting]
 
-    means_sorted.iloc[3:].astype(int)
-    print(means_sorted)
+        for approach in approaches:
+            sorting_k = means_sorted.loc[approach].argsort()
+            sorting_k = sorting_k.argsort()
+            means_sorted.loc[approach+' rank'] = 7-sorting_k.astype(int)
+
+        means_sorted.iloc[3:].astype(int)
+        
     
-    return results, means_sorted
+        output_means[metric] = means_sorted
+        output_stds[metric] = stds_sorted
 
+    return output_means, output_stds
 
 # def model_predictive_uncertainty_experiment(X_gt, X_syns, model_type, workspace_folder=None, results_folder=None, load=True, save=True):
 
@@ -295,11 +304,11 @@ def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='wo
 # Predictive uncertainty with varying number of synthetic data points
 
 
-def predictive_varying_nsyn(X_gt, X_syns, dataset, model_name, n_models, nsyn, results_folder, workspace_folder, load=True, save=True, verbose=True):
+def predictive_varying_nsyn(X_gt, X_syns, dataset, model_name, nsyn, results_folder, workspace_folder, load=True, save=True, verbose=True):
     # Generative uncertainty
     # Let us first look at the generative estimates
     nsyn = X_syns[0].shape[0]
-    n_syns = [nsyn//100, nsyn//10, nsyn]
+    n_syns = [500,1000,2000,5000,10000,20000]
     if X_syns[0].targettype is not None and X_gt.shape[1] == 2:
         for n_syn in n_syns:
             ### DGE (k=20)
