@@ -31,7 +31,7 @@ from DGE_experiments import model_evaluation_experiment, predictive_experiment
 
 
 # let's restrict ourselves to classification datasets
-datasets = ['moons', 'circles', 'adult',  'breast_cancer',  'seer', 'cutract' ] 
+datasets = ['moons', 'circles', 'adult',  'breast_cancer',  'seer' ] 
 #['moons', 'circles','cal_housing', 'adult', 'diabetes', 'breast_cancer',  'seer', 'cutract' ] 
 model_name = 'ctgan_deep'  # synthetic data model
     
@@ -49,9 +49,10 @@ verbose = False
 
 for nsyn in [1000, 2000, 5000, 10000]:
     for max_n in [1000, 2000, 5000, 10000]:#, 5000, 10000]:
-        for dataset in datasets:#datasets:
-            if max_n>nsyn:
+        if max_n>nsyn:
                 continue
+        for dataset in datasets:#datasets:
+            
             print('Dataset:', dataset)
 
             workspace_folder, results_folder = get_folder_names(

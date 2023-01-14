@@ -19,7 +19,16 @@ import matplotlib.pyplot as plt
 import torch
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-        
+
+from hashlib import sha256
+
+def hash_str2int(s):
+    """
+    Hash a string to an integer
+    """
+    
+    return int(sha256(s.encode('utf-8')).hexdigest(), 16) % (2**32)
+
 
 def accuracy_confidence_curve(y_true, y_prob, n_bins=20):
     thresholds = np.linspace(0.5, 0.95, n_bins)
@@ -113,6 +122,7 @@ def init_model(model_type, targettype):
         raise ValueError('Unknown model type')
     
     # Wrap the model in a pipeline to scale the data
+    #! Add scaling only of continuous and encoding of categorical
     model = Pipeline([('scaler', StandardScaler()), ('model', model)])
     return model
 
@@ -374,7 +384,7 @@ def density_estimation(X_gt, X_syn, model=None, model_type='kde', verbose=False)
         return model.pdf(X_gt.unpack(as_numpy=True)[0].T), model
 
 
-def aggregate(X_gt, X_syns, task, models=None, task_type='', load=True, save=True, workspace_folder='workspace', filename='', verbose=False):
+def aggregate(X_gt, X_syns, task, models=None, task_type='', load=True, save=True, workspace_folder=None, filename='', verbose=False):
     """
     aggregate predictions from different synthetic datasets
     """
@@ -382,12 +392,14 @@ def aggregate(X_gt, X_syns, task, models=None, task_type='', load=True, save=Tru
     results = []
     trained_models = []
     fileroot = f'{workspace_folder}/{task.__name__}_{task_type}'
-    if not os.path.exists(fileroot) and save:
-        os.makedirs(fileroot)
+    
+    if save or load:
+        if not os.path.exists(fileroot):
+            os.makedirs(fileroot)
 
     for i in range(len(X_syns)):
+        full_filename = f'{fileroot}_{filename}_{i}.pkl'
         if models is None:
-            full_filename = f'{fileroot}_{filename}_{i}.pkl'
             if verbose:
                 print(f'Saving model as {full_filename}')
 
@@ -397,9 +409,11 @@ def aggregate(X_gt, X_syns, task, models=None, task_type='', load=True, save=Tru
                 model = None
                 if verbose:
                     print(f'Train model {i+1}/{len(X_syns)}')
+                seed = hash_str2int(full_filename)
+                reproducibility.enable_reproducible_results(seed=seed)
         else:
             model = models[i]
-        reproducibility.enable_reproducible_results(seed=i+2022)
+
         res, model = task(X_gt, X_syns[i], model, task_type, verbose)
         results.append(res)
         trained_models.append(model)
@@ -448,11 +462,11 @@ def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_fold
         filename=filename)
 
     for y, stat in zip((y_pred_mean, y_pred_std), ('mean', 'std')):
-        fig = plt.figure(figsize=(4, 3), dpi=200, tight_layout=False)
+        fig = plt.figure(figsize=(3, 2.5), dpi=300, tight_layout=True)
         ax = plt.axes()
         im = ax.imshow(y.reshape(steps, steps)[::-1],
                    cmap='viridis', extent=[xmin, xmax, ymin, ymax])
-        
+        ax.set_aspect('equal', 'box')
         if 'gaussian' in results_folder:
             plt.vlines(0, ymin, ymax, colors='r', linestyles='dashed')
         
@@ -463,19 +477,20 @@ def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_fold
         
         
         if save:
-            filename_base = results_folder+f'{task.__name__}_{filename}{stat}'
+            filename_base = results_folder+f'{task.__name__}_{task_type}_{filename}{stat}'
             print(f'Saving {filename_base}.png')
-            plt.savefig(filename_base+'.png')
+            fig.savefig(f'{filename_base}.png', bbox_inches="tight")
         
         plt.show()
 
         X_train, y_train = X_gt.train().unpack(as_numpy=True)
             
         if len(np.unique(y_train)) == 2 and 'oracle' in filename.lower():
-            fig = plt.figure(figsize=(4, 3), dpi=200, tight_layout=False)
+            fig = plt.figure(figsize=(3, 2.5), dpi=200, tight_layout=True)
             ax = plt.axes()
             im = ax.imshow(y.reshape(steps, steps)[
                        ::-1], cmap='viridis', extent=[xmin, xmax, ymin, ymax])
+            ax.set_aspect('equal', 'box')
             y_train = y_train.astype(bool)
             plt.scatter(X_train[y_train, 0], X_train[y_train, 1], c='k', marker='.')
             plt.scatter(X_train[~y_train, 0], X_train[~y_train, 1], c='w', marker='.')
@@ -488,8 +503,8 @@ def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_fold
             
 
             if save:
-                plt.savefig(f'{filename_base}_with_samples.png')
-
+                fig.savefig(f'{filename_base}_with_samples.png', bbox_inches='tight')
+                
             plt.show()
 
     return y_pred_mean, y_pred_std, models
