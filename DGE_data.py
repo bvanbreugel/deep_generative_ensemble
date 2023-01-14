@@ -12,9 +12,10 @@ from synthcity.plugins import Plugins
 import synthcity.logger as log
 
 from bnaf.data.generate2d import sample2d
-from data.dataloader_seer_cutract import load_seer_cutract
 
+from data.dataloader_seer_cutract import load_seer_cutract
 from data.dataloader_adult import load_adult_census
+from data.dataloader_covid import load_covid
 
 
 def load_real_data(dataset, p_train=0.8, max_n=None):
@@ -30,7 +31,9 @@ def load_real_data(dataset, p_train=0.8, max_n=None):
         X, y = load_wine(return_X_y=True, as_frame=True)
     elif dataset == 'adult':
         X, y = load_adult_census(as_frame=True)
-
+    elif dataset == 'covid':
+        X, y = load_covid(reduce_to = 20000)
+        
     elif dataset == 'digits':
         X, y = load_digits(return_X_y=True, as_frame=True)
     elif dataset == 'moons':
@@ -49,8 +52,6 @@ def load_real_data(dataset, p_train=0.8, max_n=None):
         X = pd.DataFrame(X)
         noise = 2
         y = X[0] > noise*(np.random.uniform(size=n_real)-1/2)
-    elif dataset == 'covid':
-        raise ValueError('Covid data not available')
     elif dataset == 'cal_housing':
         X = fetch_california_housing()
         X, y = X.data, X.target
@@ -62,7 +63,7 @@ def load_real_data(dataset, p_train=0.8, max_n=None):
         X = pd.DataFrame(X)
     elif dataset in ['seer', 'cutract']:
         
-        X, y = load_seer_cutract(name="seer", seed=0)
+        X, y = load_seer_cutract(name=dataset, seed=0)
         X = pd.DataFrame(X)
     elif dataset in ['uniform', 'test']:
         n_real = 10000
@@ -143,6 +144,8 @@ def generate_synthetic(model_name, n_models, save, verbose, X_train, i, filename
     reproducibility.enable_reproducible_results(seed=i)
     if '_deep' in model_name:
         syn_model = Plugins().get(model_name.replace('_deep', ''), discriminator_n_layers_hidden=3, generator_n_layers_hidden=3)
+    elif '_shallow' in model_name:
+        syn_model = Plugins().get(model_name.replace('_shallow', ''), discriminator_n_layers_hidden=1, generator_n_layers_hidden=1)
     else:
         syn_model = Plugins().get(model_name)
     syn_model.fit(X_train)
