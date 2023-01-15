@@ -197,4 +197,9 @@ def get_real_and_synthetic(dataset,
         X_syns[i].targettype = X_gt.targettype
         X_syns[i].dataset = dataset
 
+    if dataset == 'covid':
+        X_gt['target'] = (X_gt['target']-1).astype(bool)
+        for i in range(len(X_syns)):
+            X_syns[i]['target'] = (X_syns[i]['target']-1).astype(bool)
+    
     return X_gt, X_syns
