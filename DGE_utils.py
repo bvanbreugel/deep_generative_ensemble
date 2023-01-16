@@ -200,7 +200,7 @@ def tt_predict_performance(X_test, X_train, model=None, model_type='mlp', subset
     return scores, model
 
 
-def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None, task_type='', workspace_folder=None, results_folder='results', load=True, save=True,
+def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None, task_type='', workspace_folder=None, results_folder=None, load=True, save=True,
                          approach='DGE', relative=False, run_for_all=True, verbose=False, K=None, subset=None):
     """
     aggregate predictions from different synthetic datasets
@@ -286,12 +286,12 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
 
     results = pd.concat(results, axis=0)
     if approach != 'DGE_alternative':
-        return *meanstd(results), trained_models
+        return *meanstd(results), trained_models, results
     else:
         stds = pd.concat(stds, axis=0)
         stds = stds.mean(axis=0).to_frame().T
         means, stds2 = meanstd(results)
-        return means, (stds**2+stds2**2)**0.5, trained_models
+        return means, (stds**2+stds2**2)**0.5, trained_models, None
 
 
 # def cv_predict_performance(X_gt, X_syn, model=None, model_type='mlp', n_splits=5, verbose=False):
@@ -486,7 +486,7 @@ def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_fold
         X_train, y_train = X_gt.train().unpack(as_numpy=True)
             
         if len(np.unique(y_train)) == 2 and 'oracle' in filename.lower():
-            fig = plt.figure(figsize=(3, 2.5), dpi=200, tight_layout=True)
+            fig = plt.figure(figsize=(3, 2.5), dpi=300, tight_layout=True)
             ax = plt.axes()
             im = ax.imshow(y.reshape(steps, steps)[
                        ::-1], cmap='viridis', extent=[xmin, xmax, ymin, ymax])

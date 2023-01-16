@@ -52,7 +52,7 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
         print('Computing means and stds')
 
     Ks = [20, 10, 5]
-    y_DGE_approaches = [f'DGE$_{K}$' for K in Ks]
+    y_DGE_approaches = ['DGE$_{'+str(K)+'}$' for K in Ks]
     y_naive_approaches = ['Naive (single)', 'Naive (ensemble)']
     keys = y_DGE_approaches + y_naive_approaches + ['Oracle']
     y_preds = dict(zip(keys,[[] for _ in keys]))
@@ -76,7 +76,7 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
             if d == 2 and plot and run == 0:
                 aggregate_imshow(
-                    X_test, X_syns[starting_dataset:starting_dataset+K], supervised_task, models=models, workspace_folder=workspace_folder, results_folder=results_folder, task_type=task_type, load=load, save=save, filename=f'DGE_{run_label}_')
+                    X_test, X_syns[starting_dataset:starting_dataset+K], supervised_task, models=models, workspace_folder=workspace_folder, results_folder=results_folder, task_type=task_type, load=load, save=save, filename=f'DGE_K{K}_{run_label}_')
 
             y_preds[approach].append(y_pred_mean)
 
@@ -201,22 +201,25 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
     scores_mean = {}
     scores_std = {}
 
+    scores_all = []
     for approach in y_preds.keys():
         scores = []
         for y_pred in y_preds[approach]:
             scores.append(compute_metrics(y_true, y_pred, X_test.targettype))
 
         scores = pd.concat(scores, axis=0)
-
         scores_mean[approach] = np.mean(scores, axis=0)
         scores_std[approach] = np.std(scores, axis=0)
+        scores['Approach'] = approach
+        scores_all.append(scores)
 
+    scores_all = pd.concat(scores_all, axis=0)    
     scores_mean = pd.DataFrame.from_dict(
         scores_mean, orient='index', columns=scores.columns)
     scores_std = pd.DataFrame.from_dict(
         scores_std, orient='index', columns=scores.columns)
 
-    return scores_mean, scores_std
+    return scores_mean, scores_std, scores_all
 
 ##############################################################################################################
 
@@ -226,24 +229,28 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, workspace_folder=None, load=True, save=True, outlier=False, verbose=False):
     means = []
     stds = []
-    approaches = ['Oracle', 'Naive', 'DGE (K=5)', 'DGE (K=10)', 'DGE (K=20)']
+    res = {}
+    approaches = ['Oracle', 'Naive', 'DGE$_5$', 'DGE$_{10}$', 'DGE$_{20}$']
     K = [None, None, 5, 10, 20]
     if outlier:
         subset = outlier_compute(X_gt)
     else:
         subset = None
+    folder = os.path.join(workspace_folder, 'Naive')
 
     for i, approach in enumerate(approaches):
         if verbose:
-            print('Approach: ', approach)
-        folder = os.path.join(workspace_folder, approach)
-        mean, std, _ = aggregate_predictive(
+            print('Approach: ', approach)    
+        mean, std, _, all = aggregate_predictive(
             X_gt, X_syns, models=None, task_type=model_type, workspace_folder=folder, load=load, save=save, approach=approach, relative=relative, subset=subset, verbose=verbose, K=K[i])
         means.append(mean)
         stds.append(std)
+        all['Approach'] = approach
+        res[approach] = all
 
     means = pd.concat(means, axis=0)
     stds = pd.concat(stds, axis=0)
+    res = pd.concat(res, axis=0)
     if relative == 'rmse':
         means = np.sqrt(means)
     if relative != 'l2':
@@ -254,7 +261,8 @@ def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, worksp
     stds.index = approaches
     means.index.Name = 'Approach'
     stds.index.Name = 'Approach'
-    return means, stds
+
+    return means, stds, res
 
 
 def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='workspace', load=True, save=True, outlier=False):
@@ -265,7 +273,7 @@ def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='wo
     output_stds = {}
 
     for i, model_type in enumerate(model_types):
-        mean, std = model_evaluation_experiment(
+        mean, std, _ = model_evaluation_experiment(
             X_gt, X_syns, model_type, workspace_folder=workspace_folder, relative=relative, load=load, save=save, outlier=outlier)
         all_means.append(mean)
         all_stds.append(std)
