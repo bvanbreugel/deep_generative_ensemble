@@ -1,0 +1,6 @@
+setuptools
+setuptools_scm
+wheel
+torch 
+torchvision 
+torchaudio
