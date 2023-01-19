@@ -18,7 +18,7 @@ from data.dataloader_adult import load_adult_census
 from data.dataloader_covid import load_covid
 
 
-def load_real_data(dataset, p_train=0.8, max_n=None):
+def load_real_data(dataset, p_train=0.8, max_n=None, reduce_to=20000):
 
 
     if dataset == 'diabetes':
@@ -32,7 +32,7 @@ def load_real_data(dataset, p_train=0.8, max_n=None):
     elif dataset == 'adult':
         X, y = load_adult_census(as_frame=True)
     elif dataset == 'covid':
-        X, y = load_covid(reduce_to = 20000)
+        X, y = load_covid(reduce_to = reduce_to)
         
     elif dataset == 'digits':
         X, y = load_digits(return_X_y=True, as_frame=True)
@@ -63,7 +63,7 @@ def load_real_data(dataset, p_train=0.8, max_n=None):
         X = pd.DataFrame(X)
     elif dataset in ['seer', 'cutract']:
         
-        X, y = load_seer_cutract(name=dataset, seed=0)
+        X, y = load_seer_cutract(name=dataset, seed=0, reduce_to=reduce_to)
         X = pd.DataFrame(X)
     elif dataset in ['uniform', 'test']:
         n_real = 10000
@@ -167,9 +167,10 @@ def get_real_and_synthetic(dataset,
                            load_syn=True,
                            save=True,
                            verbose=False,
-                           max_n = None):
+                           max_n = 2000,
+                           reduce_to=20000):
 
-    X_gt = load_real_data(dataset, p_train=p_train, max_n=max_n)
+    X_gt = load_real_data(dataset, p_train=p_train, max_n=max_n, reduce_to=reduce_to)
     X_train, X_test = X_gt.train(), X_gt.test()
 
     X_train.targettype = X_gt.targettype
