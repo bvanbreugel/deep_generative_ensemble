@@ -79,9 +79,9 @@ def init_model(model_type, targettype):
             model = sklearn.linear_model.LinearRegression()
     elif model_type == 'mlp':
         if targettype == 'classification':
-            model = sklearn.neural_network.MLPClassifier()
+            model = sklearn.neural_network.MLPClassifier(hidden_layer_sizes=(100))
         else:
-            model = sklearn.neural_network.MLPRegressor()
+            model = sklearn.neural_network.MLPRegressor(hidden_layer_sizes=(100))
     elif model_type == 'deepish_mlp':
         if targettype == 'classification':
             model = sklearn.neural_network.MLPClassifier(
@@ -99,16 +99,19 @@ def init_model(model_type, targettype):
                 hidden_layer_sizes=(100, 100, 100))
 
     elif model_type == 'rf':
+        # default 100 trees
         if targettype == 'classification':
             model = sklearn.ensemble.RandomForestClassifier()
         else:
             model = sklearn.ensemble.RandomForestRegressor()
     elif model_type == 'knn':
+        # default 5 neighbors
         if targettype == 'classification':
             model = sklearn.neighbors.KNeighborsClassifier()
         else:
             model = sklearn.neighbors.KNeighborsRegressor()
     elif model_type == 'svm':
+        # default rbf kernel
         if targettype == 'classification':
             model = sklearn.svm.SVC(probability=True)
         else:
@@ -141,22 +144,32 @@ def supervised_task(X_gt, X_syn, model=None, model_type='mlp', verbose=False):
     return pred, model
 
 
+def roc_auc_score_rob(y_true, y_score):
+    """
+    Robust version of sklearn.metrics.roc_auc_score
+    """
+    if len(np.unique(y_true))>1:
+        roc_auc_score(y_true, y_score)
+    else:
+        return np.nan
+
 def compute_metrics(y_test, yhat_test, targettype='classification'):
     if targettype == 'classification':
         y_test = y_test.astype(bool)
         yhat_test = yhat_test.astype(float) 
         metrics = ['AUC', 'Acc', 'F1', 'Precision', 'Recall', 'NLL', 'Brier',]
-        scores = [roc_auc_score(y_test, yhat_test), accuracy_score(y_test, yhat_test>0.5),
+        scores = [roc_auc_score_rob(y_test, yhat_test), accuracy_score(y_test, yhat_test>0.5),
                   f1_score(y_test, yhat_test>0.5), precision_score(
                       y_test, yhat_test>0.5), recall_score(y_test, yhat_test>0.5),
-                  log_loss(y_test, yhat_test), brier_score_loss(y_test, yhat_test)]
+                  log_loss(y_test, yhat_test, labels=[0,1]), brier_score_loss(y_test, yhat_test)]
     elif targettype == 'regression':
         metrics = ['RMSE', 'MAE']
         scores = [np.sqrt(mean_squared_error(
             y_test, yhat_test)), mean_absolute_error(y_test, yhat_test)]
     else:
         raise ValueError('unknown target type')
-    scores = np.round(scores, 3)
+    
+    #scores = np.round(scores, 3)
     scores = np.array(scores).reshape(1, -1)
     scores = pd.DataFrame(scores, columns=metrics)
     return scores
@@ -173,7 +186,7 @@ def outlier_compute(X):
             Xout = GenericDataLoader(Xout, target='target')
             if hasattr(X, 'targettype'):
                 Xout.targettype = X.targettype
-        return X
+        return Xout
     
     return subset
 
@@ -393,9 +406,8 @@ def aggregate(X_gt, X_syns, task, models=None, task_type='', load=True, save=Tru
     trained_models = []
     fileroot = f'{workspace_folder}/{task.__name__}_{task_type}'
     
-    if save or load:
-        if not os.path.exists(fileroot):
-            os.makedirs(fileroot)
+    if (save or load) and not os.path.exists(fileroot):
+        os.makedirs(fileroot)
 
     for i in range(len(X_syns)):
         full_filename = f'{fileroot}_{filename}_{i}.pkl'
@@ -438,9 +450,10 @@ def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_fold
     """
     Aggregate and plot predictions from different synthetic datasets, on a 2D space. E.g., density estimation, predictions.
     """
-    xmin, ymin = np.min(X_gt.train().unpack(as_numpy=True)[0], axis=0)*1.05
-    xmax, ymax = np.max(X_gt.train().unpack(as_numpy=True)[0], axis=0)*1.05
 
+    xmin = ymin = np.min(X_gt.train().unpack(as_numpy=True)[0])*1.05
+    xmax = ymax = np.max(X_gt.train().unpack(as_numpy=True)[0])*1.05
+    
     steps = 400
     X_grid = np.linspace(xmin, xmax, steps)
     Y_grid = np.linspace(ymin, ymax, steps)
@@ -534,8 +547,8 @@ def metric_different_datasets(dfs, metric='AUC', to_print=True, precision=3):
     df_all_datasets.columns = dfs.keys()
     df_all_datasets.round(precision)
 
-    for dataset in zip(['moons', 'circles', 'adult', 'breast_cancer', 'seer', 'cutract'][::-1],
-                       ['Moons', 'Circles', 'Adult Income', 'Breast Cancer', 'SEER', 'CUTRACT'][::-1]):
+    for dataset in zip(['moons', 'circles', 'adult', 'breast_cancer', 'seer', 'covid'][::-1],
+                       ['Moons', 'Circles', 'Adult Income', 'Breast Cancer', 'SEER', 'COVID-19'][::-1]):
         try:
             df_all_datasets.insert(0, dataset[1], df_all_datasets.pop(dataset[0]))
         except:
