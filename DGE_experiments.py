@@ -32,11 +32,15 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
     X_test = X_gt.test()
     d = X_test.unpack(as_numpy=True)[0].shape[1]
 
-    if outlier:
+    if type(outlier)==type(lambda x: 1):
+        subset = outlier
+        X_test = subset(X_test)
+        plot = False
+    elif outlier:
         subset = outlier_compute(X_gt)
         X_test = subset(X_test)
         plot = False
-
+    
     X_test.targettype = X_gt.targettype
 
     if not X_gt.targettype in ['regression', 'classification']:
@@ -53,8 +57,8 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
     Ks = [20, 10, 5]
     y_DGE_approaches = ['DGE$_{'+str(K)+'}$' for K in Ks]
-    y_naive_approaches = ['Naive (single)', 'Naive (ensemble)']
-    keys = y_DGE_approaches + y_naive_approaches + ['Oracle']
+    y_naive_approaches = ['Naive (S)', 'Naive (E)']
+    keys = ['Oracle'] + y_naive_approaches + y_DGE_approaches + ['DGE$_{20}$ (concat)']
     y_preds = dict(zip(keys,[[] for _ in keys]))
 
     # Oracle
@@ -62,6 +66,11 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
     X_oracle.targettype = X_syns[0].targettype
 
     X_oracle = [X_oracle] * n_models
+
+    X_syn_cat = pd.concat([X_syns[i].dataframe() for i in range(len(X_syns))], axis=0)
+    X_syn_cat = GenericDataLoader(X_syn_cat, target_column="target")
+    X_syn_cat.targettype = X_syns[0].targettype
+    X_syn_cat = [X_syn_cat]
     # Oracle ensemble
 
     for run in range(num_runs):
@@ -82,11 +91,11 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
             # for plotting calibration and confidence curves later
             if run == 0 and plot:
-                y_preds_for_plotting[f'DGE (K={K})'] = y_pred_mean
+                y_preds_for_plotting[approach] = y_pred_mean
 
         # Single dataset single model
         for approach in y_naive_approaches:
-            if approach == 'Naive (single)':
+            if approach == 'Naive (S)':
                 X_syn_run = [X_syns[run]]
             else:
                 X_syn_run = [X_syns[run]] * n_models
@@ -94,7 +103,7 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
             y_pred_mean, y_pred_std, models = aggregate(
                 X_test, X_syn_run, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename=f'naive_m{run}_')
 
-            if run == 0 and plot and 'ensemble' in approach:
+            if run == 0 and plot and approach == 'Naive (E)':
                 if d == 2:
                     aggregate_imshow(X_test, X_syn_run, supervised_task, models=models, results_folder=results_folder,
                                      task_type=task_type, load=load, save=save, filename=f'naive_m{run}_')
@@ -103,24 +112,19 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
             y_preds[approach].append(y_pred_mean)
 
-        if False:
-            # Data aggregated
-            # X_syn_cat = pd.concat([X_syns[i].dataframe()
-            #                         for i in range(len(X_syns))], axis=0)
-            # X_syn_cat = GenericDataLoader(X_syn_cat, target_column="target")
-            # X_syn_cat.targettype = X_syns[0].targettype
-            # X_syn_cat = [X_syn_cat]
-            # #X_syn_cat = [X_syn_cat.sample(len(X_syns[0])) for _ in range(len(X_syns))]
+        # Data aggregated
+        y_pred_mean, _, _ = aggregate(
+                X_test, X_syn_cat, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename=f'concat_run{run}')
 
-            # y_pred_mean, y_pred_std, models = aggregate(
-            #         X_test, X_syn_cat, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
+        if run == 0 and plot:
+            y_preds_for_plotting['DGE$_{20}$ (concat)'] = y_pred_mean
+            
+            if d == 2:
+                aggregate_imshow(X_test, X_syn_cat * n_models, supervised_task, models=None, results_folder=results_folder, workspace_folder=workspace_folder,
+                                    task_type=task_type, load=load, save=save, filename=f'concat_all')
 
-            # if d == 2 and plot:
-            #     aggregate_imshow(
-            #         X_test, X_syn_cat, supervised_task, models=models, results_folder=results_folder, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='concat')
-
-            # y_preds['Naive (concat)'] = y_pred_mean
-            pass
+        y_preds['DGE$_{20}$ (concat)'].append(y_pred_mean)
+            
 
         # Oracle single
 
@@ -169,10 +173,9 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
         if save:
             filename = results_folder+'_calibration_curve.png'
-            if not os.path.exists(results_folder):
-                os.makedirs(results_folder)
             fig.savefig(filename, dpi=200)
-
+        
+        plt.show()
         plt.close()
 
         plt.figure(figsize=(4, 4), dpi=200, tight_layout=False)
@@ -187,8 +190,6 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
         if save:
             filename = results_folder+'_confidence_accuracy_curve.png'
-            if not os.path.exists(results_folder):
-                os.makedirs(results_folder)
             plt.savefig(filename, dpi=200)
 
         if plot:
@@ -215,9 +216,9 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
     scores_all = pd.concat(scores_all, axis=0)    
     scores_mean = pd.DataFrame.from_dict(
-        scores_mean, orient='index', columns=scores.columns)
+        scores_mean, orient='index', columns=scores.columns.drop('Approach'))
     scores_std = pd.DataFrame.from_dict(
-        scores_std, orient='index', columns=scores.columns)
+        scores_std, orient='index', columns=scores.columns.drop('Approach'))
 
     return scores_mean, scores_std, scores_all
 
@@ -232,7 +233,9 @@ def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, worksp
     res = {}
     approaches = ['Oracle', 'Naive', 'DGE$_5$', 'DGE$_{10}$', 'DGE$_{20}$']
     K = [None, None, 5, 10, 20]
-    if outlier:
+    if type(outlier)==type(lambda x: 1):
+        subset = outlier
+    elif outlier==True:
         subset = outlier_compute(X_gt)
     else:
         subset = None
@@ -240,7 +243,7 @@ def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, worksp
 
     for i, approach in enumerate(approaches):
         if verbose:
-            print('Approach: ', approach)    
+            print('Approach: ', approach)
         mean, std, _, all = aggregate_predictive(
             X_gt, X_syns, models=None, task_type=model_type, workspace_folder=folder, load=load, save=save, approach=approach, relative=relative, subset=subset, verbose=verbose, K=K[i])
         means.append(mean)
@@ -253,10 +256,7 @@ def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, worksp
     res = pd.concat(res, axis=0)
     if relative == 'rmse':
         means = np.sqrt(means)
-    if relative != 'l2':
-        means = means.round(3)
-    stds = stds.round(3)
-
+    
     means.index = approaches
     stds.index = approaches
     means.index.Name = 'Approach'
@@ -317,53 +317,6 @@ def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='wo
 #     if load and workspace_folder is None:
 #         raise ValueError('Please provide a workspace folder')
 
-
-##############################################################################################################
-
-# Predictive uncertainty with varying number of synthetic data points
-
-
-def predictive_varying_nsyn(X_gt, X_syns, dataset, model_name, nsyn, results_folder, workspace_folder, load=True, save=True, verbose=True):
-    # Generative uncertainty
-    # Let us first look at the generative estimates
-    nsyn = X_syns[0].shape[0]
-    n_syns = [500, 1000, 2000, 5000, 10000, 20000]
-    if X_syns[0].targettype is not None and X_gt.shape[1] == 2:
-        for n_syn in n_syns:
-            # DGE (k=20)
-            X_syns_red = [GenericDataLoader(
-                X_syns[i][:n_syn], target_column='target') for i in range(len(X_syns))]
-            y_pred_mean, y_pred_std, models = aggregate_imshow(
-                X_gt, X_syns_red, supervised_task, models=None, task_type='mlp', load=load, save=save, filename=f'n_syn{n_syn}_dge')
-
-            # DGE (k=10)
-            X_syns_red = [GenericDataLoader(
-                X_syns[i][:n_syn], target_column='target') for i in range(10)]
-            y_pred_mean, y_pred_std, _ = aggregate_imshow(
-                X_gt, X_syns_red, supervised_task, models=models[:10], task_type='mlp', load=load, save=save, filename=f'n_syn{n_syn}_dge_k=10')
-
-            # DGE (k=5)
-            X_syns_red = [GenericDataLoader(
-                X_syns[i][:n_syn], target_column='target') for i in range(5)]
-            y_pred_mean, y_pred_std, _ = aggregate_imshow(
-                X_gt, X_syns_red, supervised_task, models=models[:5], task_type='mlp', load=load, save=save, filename=f'n_syn{n_syn}_dge_k=5')
-
-            # Single model
-            # Now let's look at the same behaviour by a single data and a downstream DE
-            index = 0
-            X_syn_0 = [GenericDataLoader(X_syns[index][:n_syn], target_column='target')
-                       for i in range(len(X_syns))]
-            y_pred_mean, y_pred_std, _ = aggregate_imshow(
-                X_gt, X_syn_0, supervised_task, models=[models[index] for i in range(len(X_syn_0))], task_type='mlp', load=False, save=save, filename=f'n_syn{n_syn}_naive')
-
-            # Aggregated data
-            # And what happens when using all data for the downstream DE?
-            X_syn_cat = cat_dl(X_syns, n_limit=n_syn)
-            X_syn_cat = [X_syn_cat for _ in range(len(X_syns))]
-            # X_syn_cat = [X_syn_cat.sample(len(X_syns[0])) for _ in range(len(X_syns))]
-
-            y_pred_mean, y_pred_std, models = aggregate_imshow(
-                X_gt, X_syn_cat, supervised_task, models=None, task_type='mlp', load=load, save=save, filename=f'n_syn{n_syn}_concat')
 
 
 #############################################################################################################
