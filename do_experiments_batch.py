@@ -31,7 +31,7 @@ from DGE_experiments import model_evaluation_experiment, predictive_experiment
 
 
 # let's restrict ourselves to classification datasets
-datasets = ['moons', 'circles', 'adult',  'breast_cancer',  'seer' ] 
+datasets = ['covid' ] 
 #['moons', 'circles','cal_housing', 'adult', 'diabetes', 'breast_cancer',  'seer', 'cutract' ] 
 model_name = 'ctgan_deep'  # synthetic data model
     
@@ -47,50 +47,50 @@ save = True  # save results and data
 verbose = False
 
 
-for nsyn in [1000, 2000, 5000, 10000]:
-    for max_n in [1000, 2000, 5000, 10000]:#, 5000, 10000]:
+for nsyn in [2000, 5000]:
+    for max_n in [2000, 5000, 10000]:#, 5000, 10000]:
         if max_n>nsyn:
                 continue
         for dataset in datasets:#datasets:
-            
-            print('Dataset:', dataset)
+            for model_name in ['ctgan_deep', 'ctgan', 'ctgan_shallow']:
+                print('Dataset:', dataset)
 
-            workspace_folder, results_folder = get_folder_names(
-            dataset, model_name, max_n=max_n, nsyn=nsyn)
+                workspace_folder, results_folder = get_folder_names(
+                dataset, model_name, max_n=max_n, nsyn=nsyn)
 
-            X_gt, X_syns = get_real_and_synthetic(dataset=dataset,
-                                                p_train=p_train,
-                                                n_models=n_models,
-                                                model_name=model_name,
-                                                load_syn=load_syn,
-                                                verbose=verbose,
-                                                max_n=max_n)
+                X_gt, X_syns = get_real_and_synthetic(dataset=dataset,
+                                                    p_train=p_train,
+                                                    n_models=n_models,
+                                                    model_name=model_name,
+                                                    load_syn=load_syn,
+                                                    verbose=verbose,
+                                                    max_n=max_n)
 
-            
-            y_preds, scores = predictive_experiment(X_gt,
-                                                    X_syns,
-                                                    workspace_folder=workspace_folder,
-                                                    results_folder=results_folder,
-                                                    save=save,
+                
+                y_preds, scores = predictive_experiment(X_gt,
+                                                        X_syns,
+                                                        workspace_folder=workspace_folder,
+                                                        results_folder=results_folder,
+                                                        save=save,
+                                                        load=load,
+                                                        plot=True,
+                                                        )
+
+                
+                means, std = model_evaluation_experiment(X_gt, X_syns, workspace_folder=workspace_folder, relative='',
+                                                    model_type='deepish_mlp',
                                                     load=load,
-                                                    plot=True,
-                                                    )
+                                                    save=load,
+                                                    verbose=verbose
 
-            
-            means, std = model_evaluation_experiment(X_gt, X_syns, workspace_folder=workspace_folder, relative='',
-                                                model_type='deepish_mlp',
-                                                load=load,
-                                                save=load,
-                                                verbose=verbose
+                )
 
-            )
+                means, std = model_evaluation_experiment(X_gt, X_syns, workspace_folder=workspace_folder, relative='',
+                                                    model_type='mlp',
+                                                    load=load,
+                                                    save=load,
+                                                    verbose=verbose
 
-            means, std = model_evaluation_experiment(X_gt, X_syns, workspace_folder=workspace_folder, relative='',
-                                                model_type='mlp',
-                                                load=load,
-                                                save=load,
-                                                verbose=verbose
+                )
 
-            )
-
-            
+                

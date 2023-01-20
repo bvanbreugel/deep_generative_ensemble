@@ -144,11 +144,11 @@ def supervised_task(X_gt, X_syn, model=None, model_type='mlp', verbose=False):
     return pred, model
 
 
-def roc_auc_score_rob(y_true, y_score):
+def roc_auc_score_rob(y_true, y_score, throw_error_if_nan=True):
     """
     Robust version of sklearn.metrics.roc_auc_score
     """
-    if len(np.unique(y_true))>1:
+    if len(np.unique(y_true))>1 or throw_error_if_nan:
         roc_auc_score(y_true, y_score)
     else:
         return np.nan
@@ -158,7 +158,7 @@ def compute_metrics(y_test, yhat_test, targettype='classification'):
         y_test = y_test.astype(bool)
         yhat_test = yhat_test.astype(float) 
         metrics = ['AUC', 'Acc', 'F1', 'Precision', 'Recall', 'NLL', 'Brier',]
-        scores = [roc_auc_score_rob(y_test, yhat_test), accuracy_score(y_test, yhat_test>0.5),
+        scores = [roc_auc_score(y_test, yhat_test), accuracy_score(y_test, yhat_test>0.5),
                   f1_score(y_test, yhat_test>0.5), precision_score(
                       y_test, yhat_test>0.5), recall_score(y_test, yhat_test>0.5),
                   log_loss(y_test, yhat_test, labels=[0,1]), brier_score_loss(y_test, yhat_test)]
@@ -446,26 +446,26 @@ def tsne(X):
     return X_2d
 
 
-def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_folder=None, workspace_folder='workspace', load=True, save=True, filename=''):
+def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_folder=None, workspace_folder='workspace', load=True, save=True, filename='', baseline_contour=None):
     """
     Aggregate and plot predictions from different synthetic datasets, on a 2D space. E.g., density estimation, predictions.
     """
 
-    xmin = ymin = np.min(X_gt.train().unpack(as_numpy=True)[0])*1.05
-    xmax = ymax = np.max(X_gt.train().unpack(as_numpy=True)[0])*1.05
+    xmin = ymin = np.min(X_gt.train().unpack(as_numpy=True)[0])
+    xmax = ymax = np.max(X_gt.train().unpack(as_numpy=True)[0])
     
     steps = 400
     X_grid = np.linspace(xmin, xmax, steps)
     Y_grid = np.linspace(ymin, ymax, steps)
 
     X_grid, Y_grid = np.meshgrid(X_grid, Y_grid)
-    X_grid = pd.DataFrame(np.c_[X_grid.ravel(), Y_grid.ravel()])
-    X_grid['target'] = -1
-    X_grid = GenericDataLoader(X_grid, target_column="target", train_size=0.01)
-    X_grid.targettype = X_syns[0].targettype
+    Z_grid = pd.DataFrame(np.c_[X_grid.ravel(), Y_grid.ravel()])
+    Z_grid['target'] = -1
+    Z_grid = GenericDataLoader(Z_grid, target_column="target", train_size=0.01)
+    Z_grid.targettype = X_syns[0].targettype
 
     y_pred_mean, y_pred_std, models = aggregate(
-        X_grid, X_syns,
+        Z_grid, X_syns,
         task=task,
         models=models,
         task_type=task_type,
@@ -474,14 +474,26 @@ def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_fold
         workspace_folder=workspace_folder,
         filename=filename)
 
+    contour = [X_grid, Y_grid, y_pred_mean.reshape(steps, steps)]
+        
     for y, stat in zip((y_pred_mean, y_pred_std), ('mean', 'std')):
         fig = plt.figure(figsize=(3, 2.5), dpi=300, tight_layout=True)
         ax = plt.axes()
-        im = ax.imshow(y.reshape(steps, steps)[::-1],
-                   cmap='viridis', extent=[xmin, xmax, ymin, ymax])
+        if 'oracle' in filename.lower():
+            plt.contour(X_grid, Y_grid, contour[2], levels = [0.5], colors='w', linestyles=':')
+        else:
+            plt.contour(X_grid, Y_grid, contour[2], levels = [0.5], colors='r', linestyles='--')
+
+        if baseline_contour is not None:
+            plt.contour(baseline_contour[0], baseline_contour[1], baseline_contour[2], levels = [0.5], colors='w', linestyles=':')
+
+        im = ax.imshow(y.reshape(steps, steps),
+                   cmap='viridis', extent=[xmin, xmax, ymin, ymax], origin='lower')
+
         ax.set_aspect('equal', 'box')
-        if 'gaussian' in results_folder:
-            plt.vlines(0, ymin, ymax, colors='r', linestyles='dashed')
+        
+        # if 'gaussian' in results_folder:
+        #     plt.vlines(0, ymin, ymax, colors='r', linestyles='dashed')
         
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
@@ -490,37 +502,34 @@ def aggregate_imshow(X_gt, X_syns, task, models=None, task_type='', results_fold
         
         
         if save:
-            filename_base = results_folder+f'{task.__name__}_{task_type}_{filename}{stat}'
-            print(f'Saving {filename_base}.png')
-            fig.savefig(f'{filename_base}.png', bbox_inches="tight")
+            filename_base = results_folder+f'{task.__name__}_{task_type}_{filename}'
+            filename_full = filename_base+stat+'.png'
+            print(f'Saving {filename_full}')
+            fig.savefig(f'{filename_full}', bbox_inches="tight")
         
         plt.show()
 
         X_train, y_train = X_gt.train().unpack(as_numpy=True)
             
-        if len(np.unique(y_train)) == 2 and 'oracle' in filename.lower():
-            fig = plt.figure(figsize=(3, 2.5), dpi=300, tight_layout=True)
-            ax = plt.axes()
-            im = ax.imshow(y.reshape(steps, steps)[
-                       ::-1], cmap='viridis', extent=[xmin, xmax, ymin, ymax])
-            ax.set_aspect('equal', 'box')
-            y_train = y_train.astype(bool)
-            plt.scatter(X_train[y_train, 0], X_train[y_train, 1], c='k', marker='.')
-            plt.scatter(X_train[~y_train, 0], X_train[~y_train, 1], c='w', marker='.')
-            if 'gaussian' in results_folder:
-                plt.vlines(0, ymin, ymax, colors='r', linestyles='dashed')
-            
-            divider = make_axes_locatable(ax)
-            cax = divider.append_axes("right", size="5%", pad=0.05)
-            plt.colorbar(im, cax=cax)     
-            
+    if len(np.unique(y_train)) == 2 and 'oracle' in filename.lower():
+        fig = plt.figure(figsize=(3, 2.5), dpi=300, tight_layout=True)
+        ax = plt.axes()
+        ax.set_aspect('equal', 'box')
+        plt.xlim(xmin, xmax)
+        plt.ylim(ymin, ymax)
+        y_train = y_train.astype(bool)
+        ax.scatter(X_train[:, 0], X_train[:, 1], c=y_train, marker='.')
+        plt.tight_layout()
+        # if 'gaussian' in results_folder:
+        #     plt.vlines(0, ymin, ymax, colors='r', linestyles='dashed')
+        
 
-            if save:
-                fig.savefig(f'{filename_base}_with_samples.png', bbox_inches='tight')
-                
-            plt.show()
+        if save:
+            fig.savefig(f'{filename_base}_samples.png', bbox_inches='tight')
+            
+        plt.show()
 
-    return y_pred_mean, y_pred_std, models
+    return y_pred_mean, y_pred_std, models, contour
 
 
 

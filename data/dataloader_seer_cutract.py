@@ -78,23 +78,32 @@ def load_seer_cutract(name="seer", reduce_to=20000, seed=42):
     else:
         n_samples = reduce_to // 2
         
-    if n_samples > len(df_dead):
-        replace_dead = True
-    else:
-        replace_dead = False
+    # if n_samples > len(df_dead):
+    #     replace_dead = True
+    # else:
+    #     replace_dead = False
     
-    if n_samples > len(df_survive):
-        replace_survive = True
-    else:
-        replace_survive = False
+    # if n_samples > len(df_survive):
+    #     replace_survive = True
+    # else:
+    #     replace_survive = False
     
+
+    # df = pd.concat(
+    #     [
+    #         df_dead.sample(n_samples, random_state=seed, replace=replace_dead),
+    #         df_survive.sample(n_samples, random_state=seed, replace=replace_survive),
+    #     ]
+    # )
 
     df = pd.concat(
         [
-            df_dead.sample(n_samples, random_state=seed, replace=replace_dead),
-            df_survive.sample(n_samples, random_state=seed, replace=replace_survive),
+            df_dead.sample(n_samples, random_state=seed),
+            df_survive.sample(n_samples, random_state=seed),
         ]
     )
+
+
     df = sklearn.utils.shuffle(df, random_state=seed)
     df = df.reset_index(drop=True)
     return df[features], df[label]
