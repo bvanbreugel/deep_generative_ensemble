@@ -4,6 +4,7 @@ from sklearn.calibration import calibration_curve
 import pandas as pd
 import numpy as np
 import os
+import pickle
 
 from synthcity.plugins.core.dataloader import GenericDataLoader
 
@@ -314,13 +315,146 @@ def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='wo
 
     return output_means, output_stds
 
-# def model_predictive_uncertainty_experiment(X_gt, X_syns, model_type, workspace_folder=None, results_folder=None, load=True, save=True):
+from DGE_utils import tt_predict_performance, cat_dl
 
-#     if save and (results_folder is None or workspace_folder is None):
-#         raise ValueError('Please provide a workspace and results folder')
-#     if load and workspace_folder is None:
-#         raise ValueError('Please provide a workspace folder')
+import pandas as pd
+from sklearn.model_selection import KFold
 
+
+def cross_val(X_gt, X_syns, workspace_folder=None, results_folder=None, 
+             save=True, load=True, task_type='mlp', 
+            cross_fold=5, verbose=False):
+    """Compares predictions by different approaches.
+
+    Args:
+        X_test (GenericDataLoader): Test data.
+        X_syns (List(GenericDataLoader)): List of synthetic datasets.
+        X_test (GenericDataLoader): Real data
+        load (bool, optional): Load results, if available. Defaults to True.
+        save (bool, optional): Save results when done. Defaults to True.
+
+    Returns:
+
+    """
+
+    if save and results_folder is None:
+        raise ValueError('results_folder must be specified when save=True.')
+
+    X_test_r = X_gt.test()
+
+    # if type(outlier) == type(lambda x: 1):
+    #     print('Using subset for evaluation')
+    #     subset = outlier
+    #     X_test_r = subset(X_test_r)
+    #     plot = False
+    # elif outlier:
+    #     raise ValueError('outlier boolean is no longer supported')
+
+    X_test_r.targettype = X_gt.targettype
+
+    if not X_gt.targettype in ['regression', 'classification']:
+        raise ValueError('X_gt.targettype must be regression or classification.')
+
+    # DGE (k=5, 10, 20)
+    n_models = 20  # maximum K
+    num_runs = len(X_syns)//n_models
+
+    if num_runs > 1 and verbose:
+        print('Computing means and stds')
+
+    keys = ['Oracle', 'Naive', 'DGE$_{20]$', 'DGE$_{20}$ (concat)']
+    #keys = keys[-2:]
+
+    # Oracle
+    X_oracle = X_gt.train()
+
+    # Oracle ensemble
+    scores_r_all = []
+    scores_s_all = []
+
+    for run in range(num_runs):
+
+        run_label = f'run_{run}'
+        starting_dataset = run*n_models
+        scores_s = {}
+        scores_r = {}
+
+        for approach in keys:
+            kf = KFold(n_splits=cross_fold, shuffle=True, random_state=0)
+            print(approach)
+            if 'oracle' in approach.lower():
+                X_syn_run = X_oracle
+            elif approach == 'Naive':
+                X_syn_run = X_syns[run]
+            elif approach.startswith('DGE') and not 'concat' in approach:
+                K = 20
+                X_syn_run = X_syns[starting_dataset:starting_dataset+K]
+            elif approach == 'DGE$_{20}$ (concat)':
+                X_syn_cat = pd.concat([X_syns[i].dataframe() for i in range(
+                    starting_dataset, starting_dataset+20)], axis=0)
+            else:
+                raise ValueError(f'Unknown approach {approach}')
+
+            scores_s[approach] = [0] * cross_fold
+            scores_r[approach] = [0] * cross_fold
+            for i, (train_index, test_index) in enumerate(kf.split(X_syn_run)):
+                
+                if verbose:
+                    print('Run', run, 'approach', approach, 'split', i)
+                
+                if type(X_syn_run) == type([]):
+                    X_train = cat_dl([X_syn_run[i] for i in train_index])
+                    X_test_s = cat_dl([X_syn_run[i] for i in test_index])
+                else:
+                    if type(X_syn_run)==pd.DataFrame:
+                        pass
+                    else:
+                        X_syn_run = X_syn_run.dataframe()
+                    
+                    x_train, x_test = X_syn_run.loc[train_index], X_syn_run.loc[test_index]
+                    X_train = GenericDataLoader(x_train, target_column="target")
+                    X_test_s = GenericDataLoader(x_test, target_column="target")
+
+                X_test_s.targettype = X_syns[0].targettype
+                X_train.targettype = X_syns[0].targettype
+
+                filename = os.path.join(
+                    workspace_folder, f'cross_validation_{task_type}_{approach}_{run_label}_split_{i}.pkl')
+
+                if load and os.path.exists(filename):
+                    with open(filename, 'rb') as f:
+                        model = pickle.load(f)
+                else:
+                    model = None
+                scores_s[approach][i], model = tt_predict_performance(
+                    X_test_s, X_train, model=model, model_type=task_type, subset=None, verbose=False)
+                scores_r[approach][i], _ = tt_predict_performance(
+                    X_test_r, X_train, model=model, model_type=task_type, subset=None, verbose=False)
+
+                scores_s[approach][i]['run'] = run
+                scores_r[approach][i]['run'] = run
+                scores_s[approach][i]['split'] = i
+                scores_r[approach][i]['split'] = i
+                scores_s[approach][i]['approach'] = approach
+                scores_r[approach][i]['approach'] = approach
+
+                if save and not os.path.exists(filename):
+                    with open(filename, 'wb') as f:
+                        pickle.dump(model, f)
+
+            scores_s[approach] = pd.concat(scores_s[approach], axis=0)
+            scores_r[approach] = pd.concat(scores_r[approach], axis=0)
+
+        scores_s_all.append(pd.concat(scores_s))
+        scores_r_all.append(pd.concat(scores_r))
+
+    scores_s_all = pd.concat(scores_s_all, axis=0)
+    scores_r_all = pd.concat(scores_r_all, axis=0)
+
+    scores_s_mean = scores_s_all.groupby(['run', 'approach']).mean()
+    scores_r_mean = scores_r_all.groupby(['run', 'approach']).mean()
+
+    return scores_s_mean, scores_r_mean
 
 #############################################################################################################
 
