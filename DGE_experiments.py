@@ -73,10 +73,6 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
     X_oracle = [X_oracle] * n_models
 
-    X_syn_cat = pd.concat([X_syns[i].dataframe() for i in range(len(X_syns))], axis=0)
-    X_syn_cat = GenericDataLoader(X_syn_cat, target_column="target")
-    X_syn_cat.targettype = X_syns[0].targettype
-    X_syn_cat = [X_syn_cat]
     # Oracle ensemble
 
     for run in range(num_runs):
@@ -134,7 +130,10 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
                 y_preds_for_plotting[approach] = y_pred_mean
 
         # Data aggregated
-
+        X_syn_cat = pd.concat([X_syns[i].dataframe() for i in range(starting_dataset, starting_dataset+20)], axis=0)
+        X_syn_cat = GenericDataLoader(X_syn_cat, target_column="target")
+        X_syn_cat.targettype = X_syns[0].targettype
+        X_syn_cat = [X_syn_cat]
         y_pred_mean, _, _ = aggregate(
             X_test, X_syn_cat, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename=f'concat_run{run}')
 
