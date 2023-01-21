@@ -4,7 +4,7 @@ from sklearn.model_selection import KFold, train_test_split
 import sklearn
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
-    
+from sklearn.neural_network import MLPClassifier, MLPRegressor    
 from synthcity.plugins.core.dataloader import GenericDataLoader
 from synthcity.utils import reproducibility
 
@@ -79,23 +79,23 @@ def init_model(model_type, targettype):
             model = sklearn.linear_model.LinearRegression()
     elif model_type == 'mlp':
         if targettype == 'classification':
-            model = sklearn.neural_network.MLPClassifier(hidden_layer_sizes=(100))
+            model = MLPClassifier(hidden_layer_sizes=(100))
         else:
-            model = sklearn.neural_network.MLPRegressor(hidden_layer_sizes=(100))
+            model = MLPRegressor(hidden_layer_sizes=(100))
     elif model_type == 'deepish_mlp':
         if targettype == 'classification':
-            model = sklearn.neural_network.MLPClassifier(
+            model = MLPClassifier(
                 hidden_layer_sizes=(100, 100))
         else:
-            model = sklearn.neural_network.MLPRegressor(
+            model = MLPRegressor(
                 hidden_layer_sizes=(100, 100))
     
     elif model_type == 'deep_mlp':
         if targettype == 'classification':
-            model = sklearn.neural_network.MLPClassifier(
+            model = MLPClassifier(
                 hidden_layer_sizes=(100, 100, 100))
         else:
-            model = sklearn.neural_network.MLPRegressor(
+            model = MLPRegressor(
                 hidden_layer_sizes=(100, 100, 100))
 
     elif model_type == 'rf':
