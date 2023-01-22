@@ -97,7 +97,13 @@ def init_model(model_type, targettype):
         else:
             model = MLPRegressor(
                 hidden_layer_sizes=(100, 100, 100))
-
+    elif model_type == 'largest_mlp':
+        if targettype == 'classification':
+            model = MLPClassifier(
+                hidden_layer_sizes=(500, 500, 500))
+        else:
+            model = MLPRegressor(
+                hidden_layer_sizes=(500, 500, 500))
     elif model_type == 'rf':
         # default 100 trees
         if targettype == 'classification':

@@ -272,8 +272,11 @@ def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, worksp
     return means, stds, res
 
 
-def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='workspace', load=True, save=True, outlier=False):
-    model_types = ['lr', 'mlp', 'deep_mlp', 'rf', 'knn', 'svm', 'xgboost']
+def model_selection_experiment(X_gt, X_syns, relative='l1', workspace_folder='workspace', load=True, save=True, outlier=False, model_types=None):
+    
+    if model_types is None:
+        model_types = ['lr', 'mlp', 'deep_mlp', 'rf', 'knn', 'svm', 'xgboost']
+    
     all_stds = []
     all_means = []
     output_means = {}
