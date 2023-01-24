@@ -365,7 +365,7 @@ def cross_val(X_gt, X_syns, workspace_folder=None, results_folder=None,
     if num_runs > 1 and verbose:
         print('Computing means and stds')
 
-    keys = ['Oracle', 'Naive', 'DGE$_{20]$', 'DGE$_{20}$ (concat)']
+    keys = ['Oracle', 'Naive', 'DGE$_{20}$', 'DGE$_{20}$ (concat)']
     #keys = keys[-2:]
 
     # Oracle
