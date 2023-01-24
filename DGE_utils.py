@@ -77,6 +77,11 @@ def init_model(model_type, targettype):
             model = sklearn.linear_model.LogisticRegression()
         else:
             model = sklearn.linear_model.LinearRegression()
+    elif model_type == 'smallest_mlp':
+        if targettype == 'classification':
+            model = MLPClassifier(hidden_layer_sizes=(50))
+        else:
+            model = MLPRegressor(hidden_layer_sizes=(50))
     elif model_type == 'mlp':
         if targettype == 'classification':
             model = MLPClassifier(hidden_layer_sizes=(100))
