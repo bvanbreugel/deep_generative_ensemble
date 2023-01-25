@@ -8,8 +8,6 @@ from sklearn.neural_network import MLPClassifier, MLPRegressor
 from synthcity.plugins.core.dataloader import GenericDataLoader
 from synthcity.utils import reproducibility
 
-from bnaf.toy2d import main as bnaf
-from bnaf.toy2d import compute_log_p_x
 
 import numpy as np
 import pandas as pd
@@ -186,22 +184,6 @@ def compute_metrics(y_test, yhat_test, targettype='classification'):
     return scores
 
 
-def outlier_compute(X):
-    center = X.unpack(as_numpy=True)[0].mean(axis=0)
-    dis_to_center = lambda x: np.sum((x.unpack(as_numpy=True)[0]-center)**2,axis=1)
-    threshold = np.quantile(dis_to_center(X), 0.9)
-    
-    def subset(X):
-        Xout = X[dis_to_center(X)>threshold]
-        if type(Xout) == pd.DataFrame:
-            Xout = GenericDataLoader(Xout, target='target')
-            if hasattr(X, 'targettype'):
-                Xout.targettype = X.targettype
-        return Xout
-    
-    return subset
-
-
 def tt_predict_performance(X_test, X_train, model=None, model_type='mlp', subset=None, verbose=False):
     """compute train_test performance for different metrics"""
     # import metrics
@@ -318,56 +300,6 @@ def aggregate_predictive(X_gt, X_syns, task=tt_predict_performance, models=None,
         return means, (stds**2+stds2**2)**0.5, trained_models, None
 
 
-# def cv_predict_performance(X_gt, X_syn, model=None, model_type='mlp', n_splits=5, verbose=False):
-#     """compute cross-validated performance for different metrics"""
-
-#     # initialize KFold with fixed random state for reproducibility
-#     kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
-
-#     x, y = X_syn.unpack(as_numpy=True)
-
-#     if X_syns[0].targettype == 'classification':
-#         metrics = ['roc_auc', 'accuracy', 'f1', 'precision', 'recall']
-#     elif X_syns[0].targettype == 'regression':
-#         metrics = ['r2', 'mse', 'mae']
-#     else:
-#         raise ValueError('unknown target type')
-
-#     models = model
-
-#     scores = []
-#     model_list = []
-
-#     for i, train_index, test_index in zip(range(n_splits), kf.split(x, y)):
-#         x_train, x_test = x[train_index], x[test_index]
-#         y_train, y_test = y[train_index], y[test_index]
-#         if models is None:
-#             model = init_model(model_type, X_syns[0].targettype)
-#             model.fit(x_train, y_train)
-#         else:
-#             model = models[i]
-
-#         yhat_test = model.predict(x_test)
-
-#         if X_syns[0].targettype == 'classification':
-#             scores.append([roc_auc_score(y_test, yhat_test), accuracy_score(y_test, yhat_test), f1_score(
-#                 y_test, yhat_test), precision_score(y_test, yhat_test), recall_score(y_test, yhat_test)])
-#         elif X_syns[0].targettype == 'regression':
-#             scores.append([r2_score(y_test, yhat_test), mean_squared_error(
-#                 y_test, yhat_test), mean_absolute_error(y_test, yhat_test)])
-
-#         if models is None:
-#             model_list.append(model)
-
-#     if models is None:
-#         models = model_list
-
-#     scores = np.array(scores)
-#     # scores = np.concatenate((np.mean(scores, axis=0), np.std(scores, axis=0)),axis=1)
-#     # metrics = metrics + [f'{m}_std' for m in metrics]
-#     scores = pd.DataFrame(scores, columns=metrics)
-#     return scores, models
-
 
 def meanstd(A):
     if type(A) == pd.DataFrame:
@@ -375,37 +307,6 @@ def meanstd(A):
     else:
         return np.mean(A, axis=0), np.std(A, axis=0)
 
-
-def density_estimation(X_gt, X_syn, model=None, model_type='kde', verbose=False):
-    """
-    compute density estimation of X_syn, evaluate on X_gt
-    """
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    from scipy.stats import gaussian_kde
-    if model_type == 'bnaf':
-
-        if model is None:
-            if verbose:
-                print('Training BNAF')
-            model = bnaf(X_syn.unpack(as_numpy=True)[0])
-        X = torch.utils.data.TensorDataset(torch.tensor(
-            X_gt.unpack(as_numpy=True)[0], device=device).to(torch.float32))
-        X = torch.utils.data.DataLoader(X, batch_size=10000, shuffle=False)
-        prob = torch.cat(
-            [
-                torch.exp(compute_log_p_x(model, x_mb)).detach()
-                for x_mb, in X
-            ],
-            0,
-        )
-        return torch.exp(prob).detach().cpu().numpy(), model
-    elif model_type == 'kde':
-        if model is None:
-            if verbose:
-                print('Training KDE')
-            model = gaussian_kde(X_syn.unpack(as_numpy=True)[0].T)
-        return model.pdf(X_gt.unpack(as_numpy=True)[0].T), model
 
 
 def aggregate(X_gt, X_syns, task, models=None, task_type='', load=True, save=True, workspace_folder=None, filename='', verbose=False):
@@ -550,7 +451,7 @@ def get_folder_names(dataset, model_name, max_n, nsyn):
     workspace_folder = os.path.join(
         "workspace", dataset, model_name, f'nmax_{max_n}_nsyn_{nsyn}')
     results_folder = os.path.join(
-        "uncertainty_results", f'{dataset}_{model_name}_nmax_{max_n}_nsyn_{nsyn}')
+        "results", f'{dataset}_{model_name}_nmax_{max_n}_nsyn_{nsyn}')
     return workspace_folder, results_folder
 
 

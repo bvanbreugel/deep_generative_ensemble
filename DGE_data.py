@@ -11,8 +11,6 @@ from synthcity.utils import reproducibility
 from synthcity.plugins import Plugins
 import synthcity.logger as log
 
-from bnaf.data.generate2d import sample2d
-
 from data.dataloader_seer_cutract import load_seer_cutract
 from data.dataloader_adult import load_adult_census
 from data.dataloader_covid import load_covid
@@ -42,10 +40,6 @@ def load_real_data(dataset, p_train=0.8, max_n=None, reduce_to=20000):
     elif dataset == 'circles':
         X, y = make_circles(n_samples=10000, noise=0.3, factor=0.5, random_state=0)
         X = pd.DataFrame(X)
-    elif dataset in ["8gaussians", "2spirals", "checkerboard", "t1", "t2", "t3", "t4"]:
-        X = sample2d(dataset, 20000)
-        X = pd.DataFrame(X)
-        y = -np.ones(X.shape[0])
     elif dataset == 'gaussian':
         n_real = 40000
         X = np.random.randn(n_real, 2)

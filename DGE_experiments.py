@@ -1,4 +1,3 @@
-from DGE_utils import outlier_compute
 import matplotlib.pyplot as plt
 from sklearn.calibration import calibration_curve
 import pandas as pd
@@ -40,9 +39,6 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
         plot = False
     elif outlier:
         raise ValueError('outlier boolean is no longer supported')
-        subset = outlier_compute(X_gt)
-        X_test = subset(X_test)
-        plot = False
 
     X_test.targettype = X_gt.targettype
 
@@ -147,17 +143,6 @@ def predictive_experiment(X_gt, X_syns, task_type='mlp', results_folder=None, wo
 
         y_preds['DGE$_{20}$ (concat)'].append(y_pred_mean)
 
-        # Oracle single
-
-        if False:
-            y_pred_mean, _, models = aggregate(
-                X_test, X_oracle, supervised_task, models=None, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle')
-
-            if d == 2 and plot:
-                aggregate_imshow(
-                    X_test, X_oracle, supervised_task, models=models, results_folder=results_folder, workspace_folder=workspace_folder, task_type=task_type, load=load, save=save, filename='oracle', baseline_contour=contour)
-
-            y_preds_for_plotting['Oracle (single)'] = y_pred_mean
 
     # Evaluation
     # Plotting
@@ -327,7 +312,7 @@ from sklearn.model_selection import KFold
 def cross_val(X_gt, X_syns, workspace_folder=None, results_folder=None, 
              save=True, load=True, task_type='mlp', 
             cross_fold=5, verbose=False):
-    """Compares predictions by different approaches.
+    """Compares predictions by different approaches using cross validation.
 
     Args:
         X_test (GenericDataLoader): Test data.
@@ -344,14 +329,6 @@ def cross_val(X_gt, X_syns, workspace_folder=None, results_folder=None,
         raise ValueError('results_folder must be specified when save=True.')
 
     X_test_r = X_gt.test()
-
-    # if type(outlier) == type(lambda x: 1):
-    #     print('Using subset for evaluation')
-    #     subset = outlier
-    #     X_test_r = subset(X_test_r)
-    #     plot = False
-    # elif outlier:
-    #     raise ValueError('outlier boolean is no longer supported')
 
     X_test_r.targettype = X_gt.targettype
 
@@ -423,10 +400,20 @@ def cross_val(X_gt, X_syns, workspace_folder=None, results_folder=None,
 
                 filename = os.path.join(
                     workspace_folder, f'cross_validation_{task_type}_{approach}_{run_label}_split_{i}.pkl')
-
+                
                 if load and os.path.exists(filename):
                     with open(filename, 'rb') as f:
                         model = pickle.load(f)
+
+                elif load and approach == 'DGE$_{20}$':
+                    # for compatibility with old files
+                    alt_filename = os.path.join(workspace_folder, f'cross_validation_{task_type}_'+'DGE$_{20]$'+f'_{run_label}_split_{i}.pkl')
+                    if os.path.exists(alt_filename):
+                        with open(alt_filename, 'rb') as f:
+                            model = pickle.load(f)
+                    else:
+                        model = None
+                
                 else:
                     model = None
                 scores_s[approach][i], model = tt_predict_performance(
@@ -459,15 +446,3 @@ def cross_val(X_gt, X_syns, workspace_folder=None, results_folder=None,
 
     return scores_s_mean, scores_r_mean
 
-#############################################################################################################
-
-# Density estimation of synthetic data outputs
-
-def density_experiment(X_gt, X_syns, load=True, save=True):
-    # Density estimation experiment
-    # Approximate density of synthetic data outputs
-
-    X_test = X_gt.test()
-    X_test.targettype = X_syns[0].targettype
-    y_pred_mean, y_pred_std, models = aggregate_imshow(
-        X_test, X_syns, density_estimation, models=None, task_type='kde', load=load, save=save)
