@@ -7,7 +7,7 @@ import pickle
 
 from synthcity.plugins.core.dataloader import GenericDataLoader
 
-from DGE_utils import supervised_task, aggregate_imshow, aggregate, density_estimation, aggregate_predictive, cat_dl, compute_metrics, accuracy_confidence_curve
+from DGE_utils import supervised_task, aggregate_imshow, aggregate, aggregate_predictive, cat_dl, compute_metrics, accuracy_confidence_curve
 
 ############################################################################################################
 # Model training. Predictive performance
