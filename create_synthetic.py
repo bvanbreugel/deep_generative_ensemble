@@ -28,9 +28,9 @@ assert device.type == 'cuda'
 from DGE_data import get_real_and_synthetic
 
 # let's restrict ourselves to classification datasets
-datasets = ['moons','circles','adult','covid','seer','breast_cancer'] 
+datasets = ['moons','circles','adult','breast_cancer','covid','seer'] 
 #['moons', 'circles','cal_housing', 'adult', 'diabetes', 'breast_cancer',  'seer', 'cutract' ] 
-model_name = 'ctgan'  # synthetic data model
+model_name = 'dpgan'  # synthetic data model
     
 p_train = 0.8  # proportion of training data for generative model. Default values if None
 n_models = 20  # number of models in ensemble
@@ -53,13 +53,13 @@ verbose = False
 #                                 max_n=max_n)
 
 
-max_n = 2000
-nsyn = 2000
 num_runs = 10
-for model_name in ['ctgan', 'tvae', 'nflow', 'adsgan'][::-1]:
-    for dataset in datasets[::-1]:
-
-        X_gt, X_syns = get_real_and_synthetic(dataset=dataset,
+dataset='seer'
+for max_n in [2000,5000]:
+    nsyn = max_n
+    if max_n == 5000:
+        num_runs = 1
+    X_gt, X_syns = get_real_and_synthetic(dataset=dataset,
                                             p_train=p_train,
                                             n_models=n_models*num_runs,
                                             model_name=model_name,

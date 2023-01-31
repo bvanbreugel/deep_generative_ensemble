@@ -1,12 +1,12 @@
 
-
+import torch
 from DGE_experiments import cross_val
 from DGE_data import get_real_and_synthetic
 from DGE_utils import get_folder_names
 
 
 num_runs = 10
-model_type = 'deep_mlp'
+model_type = 'deepish_mlp'
 model_name = 'ctgan_deep'
 nsyn = 5000
 max_n = 5000
@@ -22,7 +22,7 @@ scores_s_all = {}
 scores_r_all = {}
 
 
-for dataset in ['moons', 'circles', 'breast_cancer', 'adult', 'covid', 'seer'][::-1]:
+for dataset in ['moons', 'circles', 'breast_cancer', 'adult', 'covid', 'seer']:
     workspace_folder, results_folder = get_folder_names(
         dataset, model_name, max_n=max_n, nsyn=nsyn)
 

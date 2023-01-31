@@ -228,7 +228,7 @@ def model_evaluation_experiment(X_gt, X_syns, model_type, relative=False, worksp
     if type(outlier) == type(lambda x: 1):
         subset = outlier
     elif outlier == True:
-        subset = outlier_compute(X_gt)
+        raise ValueError('Subset not properly defined')
     else:
         subset = None
     folder = os.path.join(workspace_folder, 'Naive')

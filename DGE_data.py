@@ -140,6 +140,8 @@ def generate_synthetic(model_name, n_models, save, verbose, X_train, i, filename
         syn_model = Plugins().get(model_name.replace('_deep', ''), discriminator_n_layers_hidden=3, generator_n_layers_hidden=3)
     elif '_shallow' in model_name:
         syn_model = Plugins().get(model_name.replace('_shallow', ''), discriminator_n_layers_hidden=1, generator_n_layers_hidden=1)
+    elif '_smallest' in model_name:
+        syn_model = Plugins().get(model_name.replace('_smallest', ''), discriminator_n_layers_hidden=1, generator_n_layers_hidden=1, generator_n_units_hidden=100, discriminator_n_units_hidden=100)
     else:
         syn_model = Plugins().get(model_name)
     syn_model.fit(X_train)
@@ -155,7 +157,7 @@ def generate_synthetic(model_name, n_models, save, verbose, X_train, i, filename
 
 def get_real_and_synthetic(dataset,
                            nsyn=None,
-                           p_train=None,
+                           p_train=0.8,
                            n_models=20,
                            model_name='ctgan',
                            load_syn=True,
