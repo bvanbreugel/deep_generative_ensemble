@@ -4,7 +4,7 @@ This library implements accompanies the paper:
 "Synthetic data, real errors: how (not) to publish and use synthetic data", ICML 2023.
 https://arxiv.org/abs/2305.09235
 
-The main focus is the proposed Deep Generative Ensemble (DGE), and its comparison to naive synthetic data methods.
+The main focus is the proposed **Deep Generative Ensemble (DGE)**, and its comparison to naive synthetic data methods.
 
 ## Installation
 Create environment and install packages:
