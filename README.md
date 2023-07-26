@@ -1,4 +1,4 @@
-# Synthetic data, real errors: how (not) to publish and use synthetic data 
+# Synthetic data, real errors: how (not) to publish and use synthetic data
 
 This library implements accompanies the paper:
 "Synthetic data, real errors: how (not) to publish and use synthetic data", ICML 2023.
@@ -30,7 +30,3 @@ All experiments are provided in the notebook main_experiments.ipynb
   organization={PMLR}
 }
 ```
-
-
-
-

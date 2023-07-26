@@ -4,4 +4,3 @@ do
 	bash ~/synthcity/update.sh
 	sleep 300
 done
-

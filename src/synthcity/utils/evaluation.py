@@ -26,7 +26,6 @@ def evaluate_classifier(
     skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
 
     for train_index, test_index in skf.split(X, Y):
-
         X_train = X.loc[X.index[train_index]]
         Y_train = Y.loc[Y.index[train_index]]
         X_test = X.loc[X.index[test_index]]
@@ -87,7 +86,6 @@ def evaluate_regression(
     skf = KFold(n_splits=n_folds, shuffle=True, random_state=seed)
 
     for train_index, test_index in skf.split(X, Y):
-
         X_train = X.loc[X.index[train_index]]
         Y_train = Y.loc[Y.index[train_index]]
         X_test = X.loc[X.index[test_index]]

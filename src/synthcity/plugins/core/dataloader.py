@@ -1105,7 +1105,6 @@ class TimeSeriesDataLoader(DataLoader):
         fill: Any = np.nan,
         seq_offset: int = 0,
     ) -> pd.DataFrame:
-
         # Temporal data: (subjects, temporal_sequence, temporal_feature)
         temporal_features = TimeSeriesDataLoader.unique_temporal_features(temporal_data)
         temporal_features, mask_features = TimeSeriesDataLoader.extract_masked_features(

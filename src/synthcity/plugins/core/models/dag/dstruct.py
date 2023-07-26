@@ -82,7 +82,6 @@ class DStruct(pl.LightningModule):
         rho_max: float = 1e16,
         w_threshold: float = 0.3,
     ) -> None:
-
         super().__init__()
 
         self.h_tol, self.rho_max, self.w_threshold = h_tol, rho_max, w_threshold

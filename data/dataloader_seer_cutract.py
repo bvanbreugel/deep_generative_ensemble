@@ -1,8 +1,9 @@
+# third party
 import pandas as pd
 import sklearn
 
-def load_seer_cutract(name="seer", reduce_to=20000, seed=42):
 
+def load_seer_cutract(name="seer", reduce_to=20000, seed=42):
     def aggregate_grade(row):
         if row["grade_1.0"] == 1:
             return 1
@@ -69,7 +70,7 @@ def load_seer_cutract(name="seer", reduce_to=20000, seed=42):
     df["mortCancer"] = df["mortCancer"].astype(int)
     df["mort"] = df["mort"].astype(int)
 
-    mask = df[label] == True
+    mask = df[label] is True
     df_dead = df[mask]
     df_survive = df[~mask]
 
@@ -77,17 +78,16 @@ def load_seer_cutract(name="seer", reduce_to=20000, seed=42):
         n_samples = min([len(df_dead), len(df_survive)])
     else:
         n_samples = reduce_to // 2
-        
+
     # if n_samples > len(df_dead):
     #     replace_dead = True
     # else:
     #     replace_dead = False
-    
+
     # if n_samples > len(df_survive):
     #     replace_survive = True
     # else:
     #     replace_survive = False
-    
 
     # df = pd.concat(
     #     [
@@ -102,7 +102,6 @@ def load_seer_cutract(name="seer", reduce_to=20000, seed=42):
             df_survive.sample(n_samples, random_state=seed),
         ]
     )
-
 
     df = sklearn.utils.shuffle(df, random_state=seed)
     df = df.reset_index(drop=True)

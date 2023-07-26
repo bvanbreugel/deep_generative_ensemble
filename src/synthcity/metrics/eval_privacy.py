@@ -61,7 +61,6 @@ class kAnonymization(PrivacyEvaluator):
 
     @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def evaluate_data(self, X: DataLoader) -> int:
-
         features = get_features(X, X.sensitive_features)
 
         values = [999]

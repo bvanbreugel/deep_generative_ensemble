@@ -454,7 +454,7 @@ class PluginLoader:
 
                 spec.loader.exec_module(mod)
             cls = mod.plugin  # type: ignore
-                # failed = False
+            # failed = False
             #     break
             # except BaseException as e:
             #     log.critical(f"load failed: {e}")

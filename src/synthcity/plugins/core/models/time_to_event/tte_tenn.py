@@ -197,7 +197,6 @@ class TimeEventNN(nn.Module):
         self,
         loader: DataLoader,
     ) -> float:
-
         G_losses = []
 
         for i, data in enumerate(loader):

@@ -313,7 +313,6 @@ class TimeEventGAN(nn.Module):
         self,
         loader: DataLoader,
     ) -> Tuple[float, float]:
-
         G_losses = []
         D_losses = []
 

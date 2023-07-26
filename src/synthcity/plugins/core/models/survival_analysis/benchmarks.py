@@ -203,7 +203,6 @@ def evaluate_survival_model(
 
         cv_idx = 0
         for train_index, test_index in skf.split(X, Y):
-
             X_train = X.loc[X.index[train_index]]
             Y_train = Y.loc[Y.index[train_index]]
             T_train = T.loc[T.index[train_index]]
@@ -239,7 +238,6 @@ def evaluate_survival_model(
                     X, T, Y, time_horizons[k]
                 )
                 for train_index, test_index in skf.split(X_horizon, Y_horizon):
-
                     X_train = X_horizon.loc[X_horizon.index[train_index]]
                     Y_train = Y_horizon.loc[Y_horizon.index[train_index]]
                     T_train = T_horizon.loc[T_horizon.index[train_index]]

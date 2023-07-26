@@ -17,7 +17,8 @@ class DatasetAnonymization:
     k-Anonymity states that every individual in one dataset partition is indistinguishable from at least k - 1 other individuals.
     l-Diversity uses a stronger privacy definition and claims that every generalized block has to contain at least l different sensitive values.
     An equivalence class is said to have t-closeness if the distance between the distribution of a sensitive attribute in this class and the distribution of the attribute in the whole table is no more than a threshold t. A table is said to have t-closeness if all equivalence classes have t-closeness.
-    For that, we measure the Kolmogorov-Smirnov distance between the empirical probability distribution of the sensitive attribute over the entire dataset vs. the distribution over the partition."""
+    For that, we measure the Kolmogorov-Smirnov distance between the empirical probability distribution of the sensitive attribute over the entire dataset vs. the distribution over the partition.
+    """
 
     @validate_arguments
     def __init__(

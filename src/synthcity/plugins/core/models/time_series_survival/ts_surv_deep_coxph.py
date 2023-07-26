@@ -409,7 +409,6 @@ class DeepRecurrentCoxPH(nn.Module):
     def train_step(
         self, x: torch.Tensor, t: torch.Tensor, e: torch.Tensor, optimizer: Any
     ) -> float:
-
         x, t, e = shuffle(x, t, e, random_state=self.random_state)
 
         n = x.shape[0]
@@ -419,7 +418,6 @@ class DeepRecurrentCoxPH(nn.Module):
         epoch_loss = 0.0
 
         for i in range(batches):
-
             xb = x[i * self.batch_size : (i + 1) * self.batch_size]
             tb = t[i * self.batch_size : (i + 1) * self.batch_size]
             eb = e[i * self.batch_size : (i + 1) * self.batch_size]
@@ -442,7 +440,6 @@ class DeepRecurrentCoxPH(nn.Module):
     def test_step(
         self, x: torch.Tensor, t: torch.Tensor, e: torch.Tensor
     ) -> torch.Tensor:
-
         with torch.no_grad():
             loss = float(self.partial_ll_loss(x, t, e))
 
@@ -451,7 +448,6 @@ class DeepRecurrentCoxPH(nn.Module):
     def __interpolate_missing_times(
         self, survival_predictions: np.ndarray, times: list
     ) -> np.ndarray:
-
         nans = np.full(survival_predictions.shape[1], np.nan)
         not_in_index = list(set(times) - set(survival_predictions.index))
 

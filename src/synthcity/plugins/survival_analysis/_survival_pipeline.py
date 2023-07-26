@@ -110,7 +110,6 @@ class SurvivalPipeline(Plugin):
 
     def _generate(self, count: int, syn_schema: Schema, **kwargs: Any) -> DataLoader:
         def _generate(count: int) -> pd.DataFrame:
-
             generated = self.generator.generate(count, **kwargs).dataframe()
             if self.censoring_strategy == "covariate_dependent":
                 print(

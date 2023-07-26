@@ -80,7 +80,6 @@ class CoxTimeSeriesSurvival(TimeSeriesSurvivalPlugin):
         T: np.ndarray,
         E: np.ndarray,
     ) -> TimeSeriesSurvivalPlugin:
-
         self.emb_model.fit(static, temporal, temporal_horizons, T, E)
         embeddings = self.emb_model.predict_emb(
             static, temporal, temporal_horizons

@@ -409,7 +409,6 @@ class PrivBayes(Serializable):
         parent_limit: int,
         split: int,
     ) -> Tuple[List[network_edge], List[float]]:
-
         assert candidate not in parent_candidates
         if split + parent_limit > len(parent_candidates):
             return [], []
@@ -462,7 +461,7 @@ class PrivBayes(Serializable):
     ) -> List:
         """Applied in Exponential Mechanism to sample outcomes."""
         delta_array = []
-        for (candidate, parents) in parents_pair_list:
+        for candidate, parents in parents_pair_list:
             sensitivity = self._calculate_sensitivity(data, candidate, parents)
             delta = self._calculate_delta(data, sensitivity)
             delta_array.append(delta)

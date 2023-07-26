@@ -32,16 +32,13 @@ ACTIVATION_DICT = {
 
 
 def build_network(network_name: str, params: dict) -> Any:
-
     if network_name == "feedforward":
-
         net = feedforward_network(params)
 
     return net
 
 
 def feedforward_network(params: dict) -> Any:
-
     """Architecture for a Feedforward Neural Network
 
     Args:
@@ -66,7 +63,6 @@ def feedforward_network(params: dict) -> Any:
     modules = []
 
     if params["dropout_active"]:
-
         modules.append(torch.nn.Dropout(p=params["dropout_prob"]))
 
     # Input layer
@@ -79,9 +75,7 @@ def feedforward_network(params: dict) -> Any:
     # Intermediate layers
 
     for u in range(params["num_layers"] - 1):
-
         if params["dropout_active"]:
-
             modules.append(torch.nn.Dropout(p=params["dropout_prob"]))
 
         modules.append(

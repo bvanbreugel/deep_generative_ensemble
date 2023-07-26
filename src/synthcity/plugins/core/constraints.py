@@ -240,7 +240,7 @@ class Constraints(BaseModel):
         return results
 
     def feature_params(self, feature: str) -> Tuple:
-        """ Provide the parameters of Distribution from the Constraint
+        """Provide the parameters of Distribution from the Constraint
 
         This is to be used with the constraint_to_distribution function in distribution module.
 

@@ -189,7 +189,7 @@ class NormalizingFlowsPlugin(Plugin):
         return self
 
     def _generate(self, count: int, syn_schema: Schema, **kwargs: Any) -> pd.DataFrame:
-        def _internal_generate(count : int) -> pd.DataFrame:
+        def _internal_generate(count: int) -> pd.DataFrame:
             batch = min(5000, count)
 
             result = self.model.generate(1)
@@ -201,7 +201,9 @@ class NormalizingFlowsPlugin(Plugin):
             while count > 0 and retries < max_retries:
                 batch = min(batch, count)
                 try:
-                    result = pd.concat([result, self.model.generate(batch)], ignore_index = True)
+                    result = pd.concat(
+                        [result, self.model.generate(batch)], ignore_index=True
+                    )
                 except BaseException:
                     pass
 

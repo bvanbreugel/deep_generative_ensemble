@@ -291,7 +291,6 @@ class JensenShannonDistance(StatisticalEvaluator):
         X_gt: DataLoader,
         X_syn: DataLoader,
     ) -> Tuple[Dict, Dict, Dict]:
-
         stats_gt = {}
         stats_syn = {}
         stats_ = {}
@@ -563,7 +562,7 @@ class PRDCScore(StatisticalEvaluator):
 
 
 class AlphaPrecision(StatisticalEvaluator):
-    """ Evaluates the alpha-precision, beta-recall, and authenticity scores.
+    """Evaluates the alpha-precision, beta-recall, and authenticity scores.
 
     The class evaluates the synthetic data using a tuple of three metrics:
     alpha-precision, beta-recall, and authenticity.
@@ -575,6 +574,7 @@ class AlphaPrecision(StatisticalEvaluator):
     data? sample-level metrics for evaluating and auditing generative models."
     In International Conference on Machine Learning, pp. 290-306. PMLR, 2022.
     """
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
@@ -678,7 +678,6 @@ class AlphaPrecision(StatisticalEvaluator):
         X: DataLoader,
         X_syn: DataLoader,
     ) -> Dict:
-
         results = {}
 
         X_ = X.numpy()

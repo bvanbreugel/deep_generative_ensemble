@@ -76,7 +76,6 @@ def evaluate_auc(
     y_pred_proba: np.ndarray,
     classes: Union[np.ndarray, None] = None,
 ) -> Tuple[float, float]:
-
     y_test = np.asarray(y_test)
     y_pred_proba = np.asarray(y_pred_proba)
 
@@ -90,7 +89,6 @@ def evaluate_auc(
     y_pred_proba_tmp = get_y_pred_proba_hlpr(y_pred_proba, n_classes)
 
     if n_classes > 2:
-
         fpr = dict()
         tpr = dict()
         precision = dict()
@@ -119,7 +117,6 @@ def evaluate_auc(
         aucroc = roc_auc["micro"]
         aucprc = average_precision["micro"]
     else:
-
         aucroc = roc_auc_score(np.ravel(y_test), y_pred_proba_tmp, multi_class="ovr")
         aucprc = average_precision_score(np.ravel(y_test), y_pred_proba_tmp)
 

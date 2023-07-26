@@ -1,13 +1,17 @@
-import pandas as pd 
+# third party
+import pandas as pd
 
-def load_covid(relative_path = 'data/covid_data.csv', reduce_to=None):
+
+def load_covid(relative_path="data/covid_data.csv", reduce_to=None):
     # from https://www.kaggle.com/code/imzeepo/covid-19-logistic-regression-random-forest
-    
+
     try:
         covid = pd.read_csv(relative_path)
     except FileNotFoundError:
-        raise FileNotFoundError('Could not find Covid Data.csv in data folder. Download from https://www.kaggle.com/datasets/meirnizri/covid19-dataset')
-    
+        raise FileNotFoundError(
+            "Could not find Covid Data.csv in data folder. Download from https://www.kaggle.com/datasets/meirnizri/covid19-dataset"
+        )
+
     # * sex: 1 for female and 2 for male.
     # * age: of the patient.
     # * classification: covid test findings. Values 1-3 mean that the patient was diagnosed with covid in different
@@ -36,24 +40,36 @@ def load_covid(relative_path = 'data/covid_data.csv', reduce_to=None):
     # Get rid of missing value samples
     # * except for INTUBED, PREGNANT, ICU columns since they have too many, delete these columns.
 
-    cols = ['PNEUMONIA','DIABETES', 'COPD', 'ASTHMA', 'INMSUPR','HIPERTENSION', 
-            'OTHER_DISEASE', 'CARDIOVASCULAR', 'OBESITY','RENAL_CHRONIC', 'TOBACCO']
+    cols = [
+        "PNEUMONIA",
+        "DIABETES",
+        "COPD",
+        "ASTHMA",
+        "INMSUPR",
+        "HIPERTENSION",
+        "OTHER_DISEASE",
+        "CARDIOVASCULAR",
+        "OBESITY",
+        "RENAL_CHRONIC",
+        "TOBACCO",
+    ]
 
-    for col in cols :
-        covid = covid[(covid[col] == 1)|(covid[col] == 2)]
+    for col in cols:
+        covid = covid[(covid[col] == 1) | (covid[col] == 2)]
 
-    covid['target'] = [2 if row=='9999-99-99' else 1 for row in covid['DATE_DIED']]
-    
-    covid.drop(columns=['INTUBED','ICU','DATE_DIED'],inplace=True)
+    covid["target"] = [2 if row == "9999-99-99" else 1 for row in covid["DATE_DIED"]]
+
+    covid.drop(columns=["INTUBED", "ICU", "DATE_DIED"], inplace=True)
 
     # 'DATE_DIED' column to binary 'target' column
-    
+
     if reduce_to is not None:
         covid = covid.sample(n=reduce_to, replace=False, random_state=42)
-    y = covid['target']
-    x = covid.drop('target', axis=1)
+    y = covid["target"]
+    x = covid.drop("target", axis=1)
 
     return x, y
 
-if __name__=='__main__':
+
+if __name__ == "__main__":
     X, y = load_covid()
