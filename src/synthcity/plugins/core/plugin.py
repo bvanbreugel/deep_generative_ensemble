@@ -440,25 +440,25 @@ class PluginLoader:
 
         failed = False
         for retry in range(2):
-            try:
-                if module_name in sys.modules:
-                    mod = sys.modules[module_name]
-                else:
-                    spec = importlib.util.spec_from_file_location(module_name, plugin)
-                    if not isinstance(spec.loader, Loader):
-                        raise RuntimeError("invalid plugin type")
+            # try:
+            if module_name in sys.modules:
+                mod = sys.modules[module_name]
+            else:
+                spec = importlib.util.spec_from_file_location(module_name, plugin)
+                if not isinstance(spec.loader, Loader):
+                    raise RuntimeError("invalid plugin type")
 
-                    mod = importlib.util.module_from_spec(spec)
-                    if module_name not in sys.modules:
-                        sys.modules[module_name] = mod
+                mod = importlib.util.module_from_spec(spec)
+                if module_name not in sys.modules:
+                    sys.modules[module_name] = mod
 
-                    spec.loader.exec_module(mod)
-                cls = mod.plugin  # type: ignore
-                failed = False
-                break
-            except BaseException as e:
-                log.critical(f"load failed: {e}")
-                failed = True
+                spec.loader.exec_module(mod)
+            cls = mod.plugin  # type: ignore
+                # failed = False
+            #     break
+            # except BaseException as e:
+            #     log.critical(f"load failed: {e}")
+            #     failed = True
 
         if failed:
             log.critical(f"module {name} load failed")

@@ -3,7 +3,7 @@ from typing import Any, List
 
 # third party
 import pandas as pd
-from ctgan import TVAESynthesizer
+from ctgan import TVAE
 
 # synthcity absolute
 from synthcity.plugins.core.dataloader import DataLoader
@@ -66,7 +66,7 @@ class OriginalTVAEPlugin(Plugin):
     ) -> None:
         super().__init__(**kwargs)
         self.cat_limit = cat_limit
-        self.model = TVAESynthesizer(
+        self.model = TVAE(
             embedding_dim=embedding_n_units,
             compress_dims=list(compress_n_units for i in range(compress_n_layers)),
             decompress_dims=list(

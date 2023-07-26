@@ -105,6 +105,7 @@ class BinEncoder(TransformerMixin, BaseEstimator):
     ) -> pd.Series:
         column_name = data.name
         gm = column_transform_info.transform
+        print(data.to_frame(), [column_name])
         transformed = gm.transform(data.to_frame(), [column_name])
 
         return transformed[f"{column_name}.component"].to_numpy().astype(int)

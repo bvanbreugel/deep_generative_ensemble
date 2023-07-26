@@ -9,7 +9,7 @@ from typing import Any, List
 
 # third party
 import pandas as pd
-from ctgan import CTGANSynthesizer
+from ctgan import CTGAN
 
 # synthcity absolute
 from synthcity.plugins.core.dataloader import DataLoader
@@ -87,7 +87,7 @@ class OriginalCTGANPlugin(Plugin):
         super().__init__(**kwargs)
 
         self.cat_limit = cat_limit
-        self.model = CTGANSynthesizer(
+        self.model = CTGAN(
             embedding_dim=embedding_n_units,
             generator_dim=tuple(generator_n_units for i in range(generator_n_layers)),
             generator_lr=generator_lr,
