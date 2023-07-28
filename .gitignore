@@ -1,6 +1,7 @@
 data/*.csv
 uncertainty_results/*
-
+update.sh
+updater.sh
 
 # Temporary and binary files
 *~
